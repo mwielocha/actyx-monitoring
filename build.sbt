@@ -6,7 +6,7 @@ lazy val root = (project in file(".")).
     name := "actyx-monitoring",
     version := "1.0",
     scalaVersion := "2.11.7"
-  )
+  ).enablePlugins(play.sbt.PlayScala)
 
 //mainClass in (Compile, run) := Some("...")
 
