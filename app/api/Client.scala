@@ -13,6 +13,8 @@ import play.api.libs.ws._
 import model._
 import org.joda.time.DateTime
 
+import play.api.libs.json._
+
 
 /**
  * Created by Mikolaj Wielocha on 04/05/16
@@ -21,16 +23,26 @@ import org.joda.time.DateTime
 @Singleton
 class Client @Inject() (private val ws: WSClient)(implicit private val ec: ExecutionContext) {
 
-  val apiUrl = "http://machinepark.actyx.io/api/v1/machine"
+  val UUIDRegex = "[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}".r
+
+  val machineUrl = "http://machinepark.actyx.io/api/v1/machine"
 
   def getMachineStatus(machineId: UUID): Future[MachineData] = {
     println("Get")
-    // ws.url(s"$apiUrl/$machineId").get().map {
-    //   case response if response.status == 200 => response.json.as[MachineData]
-    //   case response => println(s"Error: ${response.body}"); throw new RuntimeException
-    // }
+    ws.url(s"$machineUrl/$machineId").get().map {
+      case response => (response.json.as[JsObject]
+          ++ Json.obj("id" -> machineId)).as[MachineData]
+    }
+  }
 
-    Future.successful(MachineData(machineId, "Sample", DateTime.now, math.random))
+  val machinesUrl = "http://machinepark.actyx.io/api/v1/machines"
+
+  def getMachines: Future[List[UUID]] = {
+    ws.url(machinesUrl).get().map {
+      response => response.json.as[List[String]].flatMap {
+        url => UUIDRegex.findFirstIn(url)
+      }.map(UUID.fromString)
+    }
   }
 }
 

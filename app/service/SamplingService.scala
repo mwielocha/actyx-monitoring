@@ -11,12 +11,12 @@ import akka.actor.ActorSystem
 import scala.concurrent.ExecutionContext
 import akka.stream.impl.fusing.GraphStages.TickSource
 import scala.concurrent.duration._
-//import akka.stream.scaladsl._
 import akka.stream.SourceShape
 import akka.stream.scaladsl._
 import akka.stream.ClosedShape
 import akka.stream.OverflowStrategy
 import akka.stream.FlowShape
+import akka.stream.SinkShape
 
 import akka.stream.Supervision
 
@@ -45,59 +45,60 @@ class SamplingService @Inject() (private val client: Client, private val samples
     case e: Exception => logger.error("Error", e); Supervision.Restart
   }
 
-  implicit val mat = ActorMaterializer(
-    ActorMaterializerSettings(actorSystem)
-      .withSupervisionStrategy(supervision))
-
-  val machineId = UUID.fromString("0e079d74-3fce-42c5-86e9-0a4ecc9a26c5")
-
-  val rate = 1 seconds
+  val rate = 5 seconds
 
   val offset = 10
 
-  val pipe = RunnableGraph.fromGraph(GraphDSL.create() { implicit builder =>
+  def connect(sink: Sink[MachineDataWithAverage, _], machineId: UUID): Unit = {
 
-    import GraphDSL.Implicits._
+    implicit val mat = ActorMaterializer(
+        ActorMaterializerSettings(actorSystem)
+          .withSupervisionStrategy(supervision))
 
-    val throttler = Source.tick[Unit](rate, rate, () => ())
+    val flow = RunnableGraph.fromGraph(GraphDSL.create() { implicit builder =>
 
-    val sampler = Source.actorPublisher(MachineDataSampler.props(machineId, client))
+      import GraphDSL.Implicits._
 
-    val zip1 = builder.add(ZipWith[Unit, MachineData, MachineData]((_, md) => md))
+      val throttler = Source.tick[Unit](rate, rate, () => ())
 
-    val zip2 = builder.add(ZipWith[MachineData, Double, MachineDataWithAverage]((md, avg) => MachineDataWithAverage(md, avg)))
+      val sampler = Source.actorPublisher(MachineDataSampler.props(machineId, client))
 
-    val splitter = builder.add(Broadcast[MachineData](2))
+      val zip1 = builder.add(ZipWith[Unit, MachineData, MachineData]((_, md) => md))
 
-    val store = builder.add(Flow[MachineData].mapAsync(1)(samplesRepository.save(_)))
+      val zip2 = builder.add(ZipWith[MachineData, Double, MachineDataWithAverage]((md, avg) => MachineDataWithAverage(md, avg)))
 
-    val average = builder
-      .add(Flow[MachineData]
-      .map(_.current).sliding(offset)
-      .map(x => x.sum / x.size.toDouble))
+      val splitter = builder.add(Broadcast[MachineData](2))
 
-    val compensate: FlowShape[Double, Double] = builder
-      .add(Flow[Double]
-      .expand(Iterator.continually(_)))
+      val store = builder.add(Flow[MachineData].mapAsync(1)(samplesRepository.save(_)))
 
-    val zero = Source.single[Double](0.0)
+      val average = builder
+        .add(Flow[MachineData]
+          .map(_.current).sliding(offset)
+          .map(x => x.sum / x.size.toDouble))
 
-    val merge = builder.add(MergePreferred[Double](1))
+      val compensate: FlowShape[Double, Double] = builder
+        .add(Flow[Double]
+          .expand(Iterator.continually(_)))
 
-    throttler ~> zip1.in0
+      val zero = Source.single[Double](0.0)
 
-    sampler ~> store ~> zip1.in1
+      val merge = builder.add(MergePreferred[Double](1))
 
-    zip1.out ~> splitter ~> zip2.in0
+      throttler ~> zip1.in0
 
-    zero ~> merge.preferred
-    
-    splitter ~> average ~> merge ~> compensate ~> zip2.in1
-    
-    zip2.out ~> Sink.foreach[MachineDataWithAverage](println)
+      sampler ~> store ~> zip1.in1
 
-    ClosedShape
-  })
+      zip1.out ~> splitter ~> zip2.in0
 
-  pipe.run()
+      zero ~> merge.preferred
+      
+      splitter ~> average ~> merge ~> compensate ~> zip2.in1
+      
+      zip2.out ~> Sink.foreach[MachineDataWithAverage](println)
+
+      ClosedShape
+    })
+
+    flow.run()
+  }
 }
