@@ -27,6 +27,7 @@ class MachineDataSpec extends FlatSpec with Matchers {
     }"""
 
     Json.parse(raw).as[MachineData] shouldBe MachineData(
+      
       "DMG DMU 40eVo [#50]",
       DateTime.parse("2016-05-04T17:09:51.320410"),
       12.21)

@@ -7,6 +7,9 @@ import java.util.UUID
 import akka.actor.Props
 
 import akka.stream.actor.ActorPublisherMessage._
+import akka.actor.ActorLogging
+
+
 
 /**
  * Created by Mikolaj Wielocha on 04/05/16
@@ -15,15 +18,13 @@ import akka.stream.actor.ActorPublisherMessage._
 class MachineDataSampler(
   private val machineId: UUID,
   private val client: Client
-) extends ActorPublisher[MachineData] {
+) extends ActorPublisher[MachineData] with ActorLogging {
 
   import context.dispatcher
 
   def receive = {
 
     case Request(n) =>
-
-      println(s"Requested $n elements")
 
       client.getMachineStatus(machineId).foreach(onNext)
 

@@ -28,7 +28,6 @@ class Client @Inject() (private val ws: WSClient)(implicit private val ec: Execu
   val machineUrl = "http://machinepark.actyx.io/api/v1/machine"
 
   def getMachineStatus(machineId: UUID): Future[MachineData] = {
-    println("Get")
     ws.url(s"$machineUrl/$machineId").get().map {
       case response => (response.json.as[JsObject]
           ++ Json.obj("id" -> machineId)).as[MachineData]
