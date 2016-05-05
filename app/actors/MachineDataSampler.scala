@@ -21,7 +21,9 @@ class MachineDataSampler(
 
   def receive = {
 
-    case Request(_) =>
+    case Request(n) =>
+
+      println(s"Requested $n elements")
 
       client.getMachineStatus(machineId).foreach(onNext)
 

@@ -30,7 +30,7 @@ class Client @Inject() (private val ws: WSClient)(implicit private val ec: Execu
     //   case response => println(s"Error: ${response.body}"); throw new RuntimeException
     // }
 
-    Future.successful(MachineData("Sample", DateTime.now, math.random, None))
+    Future.successful(MachineData("Sample", DateTime.now, math.random))
   }
 }
 

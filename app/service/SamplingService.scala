@@ -16,6 +16,7 @@ import akka.stream.SourceShape
 import akka.stream.scaladsl._
 import akka.stream.ClosedShape
 import akka.stream.OverflowStrategy
+import akka.stream.FlowShape
 
 
 import akka.stream.ActorMaterializerSettings
@@ -44,6 +45,8 @@ class SamplingService @Inject() (private val client: Client)(implicit
 
   val rate = 1 seconds
 
+  val offset = 10
+
   val pipe = RunnableGraph.fromGraph(GraphDSL.create() { implicit builder =>
 
     import GraphDSL.Implicits._
@@ -52,27 +55,36 @@ class SamplingService @Inject() (private val client: Client)(implicit
 
     val sampler = Source.actorPublisher(MachineDataSampler.props(machineId, client))
 
-    val sink = Sink.foreach[MachineData](println)
-
     val zip1 = builder.add(ZipWith[Unit, MachineData, MachineData]((_, md) => md))
 
-    //val zip2 = builder.add(ZipWith[MachineData, Option[Double], MachineData]((md, avgOpt) => md.copy(avgCurrent = avgOpt)))
+    val zip2 = builder.add(ZipWith[MachineData, Double, MachineDataWithAverage]((md, avg) => MachineDataWithAverage(md, avg)))
 
-    //val splitter = builder.add(Broadcast[MachineData](2))
+    val splitter = builder.add(Broadcast[MachineData](2))
 
-    // val f = builder.add(Flow[MachineData].map(_.current).grouped(10).map(_.sum).map(Some(_)).conflate()
+    val average = builder
+      .add(Flow[MachineData]
+      .map(_.current).sliding(offset)
+      .map(x => x.sum / x.size.toDouble))
+
+    val compensate: FlowShape[Double, Double] = builder
+      .add(Flow[Double]
+      .expand(Iterator.continually(_)))
+
+    val zero = Source.single[Double](0.0)
+
+    val merge = builder.add(MergePreferred[Double](1))
 
     throttler ~> zip1.in0
 
     sampler ~> zip1.in1
 
-    // zip1.out ~> splitter ~> zip2.in0
-    // 
-    // splitter ~> f ~> zip2.in1
-    // 
-    // zip2.out ~> sink
+    zip1.out ~> splitter ~> zip2.in0
 
-    zip1.out ~> sink
+    zero ~> merge.preferred
+    
+    splitter ~> average ~> merge ~> compensate ~> zip2.in1
+    
+    zip2.out ~> Sink.foreach[MachineDataWithAverage](println)
 
     ClosedShape
   })
