@@ -7,7 +7,7 @@ import io.getquill._
 import io.getquill.naming.SnakeCase
 
 
-import api.model._
+import model.Sample
 import org.joda.time.DateTime
 import java.util.Date
 import scala.concurrent.Future
@@ -33,13 +33,14 @@ class SamplesRepository @Inject() (implicit private val ec: ExecutionContext) {
   implicit val encodeDateTime = mappedEncoding[DateTime, Date](_.toDate())
   implicit val decodeDateTime = mappedEncoding[Date, DateTime](new DateTime(_))
 
+  case class Samples(id: UUID, name: String, current: Double, timestamp: DateTime)
+
   lazy val db = source(new CassandraAsyncSourceConfig[SnakeCase]("db"))
 
   val insert = quote {
     (id: UUID, name: String, current: Double, timestamp: DateTime) =>
 
-    query[MachineData](
-      _.entity("samples")).insert(
+    query[Samples].insert(
       _.id -> id,
       _.name -> name,
       _.current -> current,
@@ -47,12 +48,12 @@ class SamplesRepository @Inject() (implicit private val ec: ExecutionContext) {
     ).usingTtl(`24hours`)
   }
 
-  def save(md: MachineData): Future[MachineData] = {
+  def save(sa: Sample): Future[Sample] = {
     db.run(insert)(
-      md.id,
-      md.name,
-      md.current,
-      md.timestamp)
-    .map(_ => md)
+      sa.machineInfo.id,
+      sa.machineInfo.status.name,
+      sa.machineInfo.status.current,
+      sa.timestamp
+    ).map(_ => sa)
   }
 }

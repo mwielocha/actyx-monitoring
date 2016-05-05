@@ -9,8 +9,8 @@ import play.api.mvc.Action
 import service.SamplingService
 
 import akka.stream.scaladsl.Sink
-import api.model.MachineDataWithAverage
-import api.Client
+import model.Sample
+import service.MachineParkApiClient
 import scala.concurrent.ExecutionContext
 import play.api.Logger
 
@@ -21,13 +21,16 @@ import play.api.Logger
  */
 
 @Singleton
-class ApplicationController @Inject() (private val client: Client, val samplingService: SamplingService)(private implicit val ec: ExecutionContext) extends Controller {
+class ApplicationController @Inject() (
+  private val client: MachineParkApiClient,
+  val samplingService: SamplingService)
+  (private implicit val ec: ExecutionContext) extends Controller {
 
   val logger = Logger(getClass)
 
   def main = Action.async {
 
-    val sink = Sink.foreach[MachineDataWithAverage](println)
+    val sink = Sink.foreach[Sample](println)
 
     client.getMachines.map { machines =>
       machines.foreach { machineId =>

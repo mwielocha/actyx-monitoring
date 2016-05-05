@@ -1,4 +1,4 @@
-package api.model
+package model
 
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
@@ -12,7 +12,7 @@ import play.api.libs.json.Json
  * Created by Mikolaj Wielocha on 04/05/16
  */
 
-class MachineDataSpec extends FlatSpec with Matchers {
+class MachineStatusSpec extends FlatSpec with Matchers {
 
   "MachineData json reads" should "parse sample json" in {
 
@@ -26,8 +26,7 @@ class MachineDataSpec extends FlatSpec with Matchers {
       "name": "DMG DMU 40eVo [#50]"
     }"""
 
-    Json.parse(raw).as[MachineData] shouldBe MachineData(
-      
+    Json.parse(raw).as[MachineStatus] shouldBe MachineStatus(
       "DMG DMU 40eVo [#50]",
       DateTime.parse("2016-05-04T17:09:51.320410"),
       12.21)

@@ -25,9 +25,8 @@ import akka.stream.ActorMaterializer
 
 import play.api.Logger
 
-import actors.MachineDataSampler
-import api.model._
-import api.Client
+import actors.MachineSampler
+import model._
 import repository.SamplesRepository
 
 /**
@@ -35,7 +34,7 @@ import repository.SamplesRepository
  */
 
 @Singleton
-class SamplingService @Inject() (private val client: Client, private val samplesRepository: SamplesRepository)(implicit
+class SamplingService @Inject() (private val client: MachineParkApiClient, private val samplesRepository: SamplesRepository)(implicit
   private val actorSystem: ActorSystem,
   private val ec: ExecutionContext) {
 
@@ -49,7 +48,7 @@ class SamplingService @Inject() (private val client: Client, private val samples
 
   val offset = 10
 
-  def connect(sink: Sink[MachineDataWithAverage, _], machineId: UUID): Unit = {
+  def connect(sink: Sink[Sample, _], machineId: UUID): Unit = {
 
     implicit val mat = ActorMaterializer(
         ActorMaterializerSettings(actorSystem)
@@ -61,19 +60,19 @@ class SamplingService @Inject() (private val client: Client, private val samples
 
       val throttler = Source.tick[Unit](rate, rate, () => ())
 
-      val sampler = Source.actorPublisher(MachineDataSampler.props(machineId, client))
+      val sampler = Source.actorPublisher(MachineSampler.props(machineId, client))
 
-      val zip1 = builder.add(ZipWith[Unit, MachineData, MachineData]((_, md) => md))
+      val zip1 = builder.add(ZipWith[Unit, MachineInfo, MachineInfo]((_, md) => md))
 
-      val zip2 = builder.add(ZipWith[MachineData, Double, MachineDataWithAverage]((md, avg) => MachineDataWithAverage(md, avg)))
+      val zip2 = builder.add(ZipWith[MachineInfo, Double, Sample]((mi, avg) => Sample(mi, avg)))
 
-      val splitter = builder.add(Broadcast[MachineData](2))
+      val splitter = builder.add(Broadcast[MachineInfo](2))
 
-      val store = builder.add(Flow[MachineData].mapAsync(1)(samplesRepository.save(_)))
+      val store = builder.add(Flow[Sample].mapAsync(1)(samplesRepository.save(_)))
 
       val average = builder
-        .add(Flow[MachineData]
-          .map(_.current).sliding(offset)
+        .add(Flow[MachineInfo]
+          .map(_.status.current).sliding(offset)
           .map(x => x.sum / x.size.toDouble))
 
       val compensate: FlowShape[Double, Double] = builder
@@ -86,7 +85,7 @@ class SamplingService @Inject() (private val client: Client, private val samples
 
       throttler ~> zip1.in0
 
-      sampler ~> store ~> zip1.in1
+      sampler ~> zip1.in1
 
       zip1.out ~> splitter ~> zip2.in0
 
@@ -94,7 +93,7 @@ class SamplingService @Inject() (private val client: Client, private val samples
       
       splitter ~> average ~> merge ~> compensate ~> zip2.in1
       
-      zip2.out ~> Sink.foreach[MachineDataWithAverage](println)
+      zip2.out ~> store ~> Sink.foreach[Sample](println)
 
       ClosedShape
     })
