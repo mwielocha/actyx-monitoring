@@ -18,6 +18,7 @@ import akka.stream.ClosedShape
 import akka.stream.OverflowStrategy
 import akka.stream.FlowShape
 
+import akka.stream.Supervision
 
 import akka.stream.ActorMaterializerSettings
 import akka.stream.ActorMaterializer
@@ -27,19 +28,26 @@ import play.api.Logger
 import actors.MachineDataSampler
 import api.model._
 import api.Client
+import repository.SamplesRepository
 
 /**
  * Created by Mikolaj Wielocha on 04/05/16
  */
 
 @Singleton
-class SamplingService @Inject() (private val client: Client)(implicit
+class SamplingService @Inject() (private val client: Client, private val samplesRepository: SamplesRepository)(implicit
   private val actorSystem: ActorSystem,
   private val ec: ExecutionContext) {
 
   val logger: Logger = Logger(this.getClass())
 
-  implicit val mat = ActorMaterializer()
+  val supervision: Supervision.Decider = {
+    case e: Exception => logger.error("Error", e); Supervision.Restart
+  }
+
+  implicit val mat = ActorMaterializer(
+    ActorMaterializerSettings(actorSystem)
+      .withSupervisionStrategy(supervision))
 
   val machineId = UUID.fromString("0e079d74-3fce-42c5-86e9-0a4ecc9a26c5")
 
@@ -61,6 +69,8 @@ class SamplingService @Inject() (private val client: Client)(implicit
 
     val splitter = builder.add(Broadcast[MachineData](2))
 
+    val store = builder.add(Flow[MachineData].mapAsync(1)(samplesRepository.save(_)))
+
     val average = builder
       .add(Flow[MachineData]
       .map(_.current).sliding(offset)
@@ -76,7 +86,7 @@ class SamplingService @Inject() (private val client: Client)(implicit
 
     throttler ~> zip1.in0
 
-    sampler ~> zip1.in1
+    sampler ~> store ~> zip1.in1
 
     zip1.out ~> splitter ~> zip2.in0
 

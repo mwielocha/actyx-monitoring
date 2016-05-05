@@ -13,6 +13,7 @@ lazy val root = (project in file(".")).
 libraryDependencies ++= Seq(
     "com.typesafe.play" %% "play-ws" % "2.5.3",
     "com.typesafe.play" %% "play-json" % "2.5.3",
+    "io.getquill" %% "quill-cassandra" % "0.5.0",
     "org.scalatest" %% "scalatest" % "2.2.6" % "test"
   )
 
