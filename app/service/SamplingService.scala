@@ -52,14 +52,11 @@ class SamplingService @Inject() (private val client: MachineParkApiClient, priva
 
     val zipper1 = builder.add(ZipWith[Unit, MachineInfo, MachineInfo]((_, md) => md))
 
-    val zipper2 = builder.add(ZipWith[MachineInfo, Double, MachineInfoWithAverageCurrent] {
-      (mi, avg) => MachineInfoWithAverageCurrent(mi, avg)
+    val zipper2 = builder.add(ZipWith[MachineInfo, Double, MachineInfo] {
+      (mi, avg) => mi.copy(averageCurrent = avg)
     })
 
     val splitter = builder.add(Broadcast[MachineInfo](2))
-
-    val perister = builder.add(Flow[MachineInfoWithAverageCurrent]
-      .mapAsync(1)(samplesRepository.save(_)))
 
     val average = builder
       .add(Flow[MachineInfo]
@@ -82,9 +79,7 @@ class SamplingService @Inject() (private val client: MachineParkApiClient, priva
 
     splitter ~> average ~> merger ~> compensate ~> zipper2.in1
 
-    zipper2.out ~> perister
-
-    FlowShape(zipper1.in1, perister.out)
+    FlowShape(zipper1.in1, zipper2.out)
   })
 
   val environmentMonitoringFlow = Flow.fromGraph(GraphDSL.create() { implicit builder =>
@@ -106,7 +101,7 @@ class SamplingService @Inject() (private val client: MachineParkApiClient, priva
     FlowShape(zipper.in1, compensate.out)
   })
 
-  def newMachineMonitoringSource(machineId: UUID): Source[MachineInfoWithAverageCurrent, _] = {
+  def newMachineMonitoringSource(machineId: UUID): Source[MachineInfo, _] = {
     Source.fromGraph(GraphDSL.create() { implicit builder =>
 
       import GraphDSL.Implicits._
@@ -121,12 +116,12 @@ class SamplingService @Inject() (private val client: MachineParkApiClient, priva
     })
   }
 
-  def newMachinesMonitoringSource(machines: List[UUID]): Source[MachineInfoWithAverageCurrent, _] = {
+  def newMachinesMonitoringSource(machines: List[UUID]): Source[MachineInfo, _] = {
     Source.fromGraph(GraphDSL.create() { implicit builder =>
 
       import GraphDSL.Implicits._
 
-      val merger = builder.add(Merge[MachineInfoWithAverageCurrent](machines.size))
+      val merger = builder.add(Merge[MachineInfo](machines.size))
 
       machines.foreach { machineId =>
         merger <~ newMachineMonitoringSource(machineId)
@@ -152,21 +147,25 @@ class SamplingService @Inject() (private val client: MachineParkApiClient, priva
   def newMonitoringSource(machines: List[UUID]): Source[MachineWithEnvironmentalInfo, _] = {
     Source.fromGraph(GraphDSL.create() { implicit builder =>
 
-     import GraphDSL.Implicits._
+      import GraphDSL.Implicits._
 
-      val zipper = builder.add(ZipWith[
-        MachineInfoWithAverageCurrent,
-        EnvironmentalInfo,
-        MachineWithEnvironmentalInfo] {
+      val zipper = builder.add(ZipWith[MachineInfo, EnvironmentalInfo, MachineWithEnvironmentalInfo] {
 
         (m, e) => MachineWithEnvironmentalInfo(m, e)
       })
+
+      val perister = builder.add(
+        Flow[MachineWithEnvironmentalInfo]
+          .mapAsync(1)(samplesRepository.save(_))
+      )
 
       newMachinesMonitoringSource(machines) ~> zipper.in0
 
       newEnvironmentMonitoringSource ~> zipper.in1
 
-      SourceShape(zipper.out)
+      zipper.out ~> perister
+
+      SourceShape(perister.out)
     })
   }
 }
