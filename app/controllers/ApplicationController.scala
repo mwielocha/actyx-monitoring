@@ -44,7 +44,7 @@ class ApplicationController @Inject() (
 
   def main = Action.async {
 
-    val sink = Sink.foreach[MachineWithEnvironmentalInfo](println)
+    val sink = Sink.ignore
 
     client.getMachines.map { machines =>
       val source = samplingService.newMonitoringSource(machines)
