@@ -39,16 +39,13 @@ class SamplingService @Inject() (private val client: MachineParkApiClient, priva
 
   val logger: Logger = Logger(this.getClass())
 
-  val machineFlowRate = 5 seconds
-  val environmentFlowRate = 3 minutes
-
   val offset = 10
 
   private val machineMonitoringFlow = Flow.fromGraph(GraphDSL.create() { implicit builder =>
 
     import GraphDSL.Implicits._
 
-    val throttler = Source.tick[Unit](machineFlowRate, machineFlowRate, () => ())
+    val throttler = Source.tick[Unit](0 seconds, 5 seconds, () => ())
 
     val zipper1 = builder.add(ZipWith[Unit, MachineInfo, MachineInfo]((_, md) => md))
 
@@ -86,7 +83,7 @@ class SamplingService @Inject() (private val client: MachineParkApiClient, priva
 
     import GraphDSL.Implicits._
 
-    val throttler = Source.tick[Unit](0 seconds, environmentFlowRate, () => ())
+    val throttler = Source.tick[Unit](0 seconds, 1 minute, () => ())
 
     val zipper = builder.add(ZipWith[Unit, EnvironmentalInfo, EnvironmentalInfo]((_, md) => md))
 
