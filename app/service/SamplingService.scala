@@ -60,7 +60,7 @@ class SamplingService @Inject() (private val client: MachineParkApiClient, priva
 
       val throttler = Source.tick[Unit](rate, rate, () => ())
 
-      val sampler = Source.actorPublisher(MachineSampler.props(machineId, client))
+      val sampler = client.newMachineInfoSource(machineId)
 
       val zip1 = builder.add(ZipWith[Unit, MachineInfo, MachineInfo]((_, md) => md))
 
