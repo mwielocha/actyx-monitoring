@@ -9,7 +9,7 @@ import play.api.mvc.Action
 import service.SamplingService
 
 import akka.stream.scaladsl.Sink
-import model.MachineInfoWithAverageCurrent
+import model.MachineWithEnvironmentalInfo
 import service.MachineParkApiClient
 import scala.concurrent.ExecutionContext
 import play.api.Logger
@@ -44,10 +44,10 @@ class ApplicationController @Inject() (
 
   def main = Action.async {
 
-    val sink = Sink.foreach[MachineInfoWithAverageCurrent](println)
+    val sink = Sink.foreach[MachineWithEnvironmentalInfo](println)
 
     client.getMachines.map { machines =>
-      val source = samplingService.newMachinesMonitoringSource(machines)
+      val source = samplingService.newMonitoringSource(machines)
       val flow = source to sink
       flow.run()
       Ok

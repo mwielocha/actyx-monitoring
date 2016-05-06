@@ -39,7 +39,8 @@ class SamplingService @Inject() (private val client: MachineParkApiClient, priva
 
   val logger: Logger = Logger(this.getClass())
 
-  val rate = 5 seconds
+  val machineFlowRate = 5 seconds
+  val environmentFlowRate = 3 minutes
 
   val offset = 10
 
@@ -47,7 +48,7 @@ class SamplingService @Inject() (private val client: MachineParkApiClient, priva
 
     import GraphDSL.Implicits._
 
-    val throttler = Source.tick[Unit](rate, rate, () => ())
+    val throttler = Source.tick[Unit](machineFlowRate, machineFlowRate, () => ())
 
     val zipper1 = builder.add(ZipWith[Unit, MachineInfo, MachineInfo]((_, md) => md))
 
@@ -86,6 +87,25 @@ class SamplingService @Inject() (private val client: MachineParkApiClient, priva
     FlowShape(zipper1.in1, perister.out)
   })
 
+  val environmentMonitoringFlow = Flow.fromGraph(GraphDSL.create() { implicit builder =>
+
+    import GraphDSL.Implicits._
+
+    val throttler = Source.tick[Unit](0 seconds, environmentFlowRate, () => ())
+
+    val zipper = builder.add(ZipWith[Unit, EnvironmentalInfo, EnvironmentalInfo]((_, md) => md))
+
+    val compensate: FlowShape[EnvironmentalInfo, EnvironmentalInfo] = builder
+      .add(Flow[EnvironmentalInfo]
+        .expand(Iterator.continually(_)))
+
+    throttler ~> zipper.in0
+
+    zipper.out ~> compensate
+
+    FlowShape(zipper.in1, compensate.out)
+  })
+
   def newMachineMonitoringSource(machineId: UUID): Source[MachineInfoWithAverageCurrent, _] = {
     Source.fromGraph(GraphDSL.create() { implicit builder =>
 
@@ -113,6 +133,40 @@ class SamplingService @Inject() (private val client: MachineParkApiClient, priva
       }
 
       SourceShape(merger.out)
+    })
+  }
+
+  def newEnvironmentMonitoringSource: Source[EnvironmentalInfo, _] = {
+    Source.fromGraph(GraphDSL.create() { implicit builder =>
+
+      import GraphDSL.Implicits._
+
+      val flow = builder.add(environmentMonitoringFlow)
+
+      client.newEnvironmentalInfoSource ~> flow
+
+      SourceShape(flow.out)
+    })
+  }
+
+  def newMonitoringSource(machines: List[UUID]): Source[MachineWithEnvironmentalInfo, _] = {
+    Source.fromGraph(GraphDSL.create() { implicit builder =>
+
+     import GraphDSL.Implicits._
+
+      val zipper = builder.add(ZipWith[
+        MachineInfoWithAverageCurrent,
+        EnvironmentalInfo,
+        MachineWithEnvironmentalInfo] {
+
+        (m, e) => MachineWithEnvironmentalInfo(m, e)
+      })
+
+      newMachinesMonitoringSource(machines) ~> zipper.in0
+
+      newEnvironmentMonitoringSource ~> zipper.in1
+
+      SourceShape(zipper.out)
     })
   }
 }
