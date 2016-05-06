@@ -49,11 +49,21 @@ class MachineParkApiClient @Inject() (private val ws: WSClient)(implicit private
   }
 
   def newMachineInfoSource(machineId: UUID): Source[MachineInfo, _] = Source.actorPublisher {
-    Props(new MachineInfoPublisher(machineId))
+    Props(new AsyncPublisher[MachineInfo](() => getMachineInfo(machineId)))
   }
 
-  private[MachineParkApiClient] class MachineInfoPublisher(private val machineId: UUID)
-      extends ActorPublisher[MachineInfo] with ActorLogging {
+  val environmentalSensorUrl = "http://machinepark.actyx.io/api/v1/env-sensor"
+
+  def getEnvironmentalInfo: Future[EnvironmentalInfo] = {
+    ws.url(environmentalSensorUrl).get().map(_.json.as[EnvironmentalInfo])
+  }
+
+  def newEnvironmentalInfoSource: Source[EnvironmentalInfo, _] = Source.actorPublisher {
+    Props(new AsyncPublisher[EnvironmentalInfo](() => getEnvironmentalInfo))
+  }
+
+  private [MachineParkApiClient] class AsyncPublisher[T](getAsync: () => Future[T])
+      extends ActorPublisher[T] with ActorLogging {
 
     import context.dispatcher
 
@@ -61,7 +71,7 @@ class MachineParkApiClient @Inject() (private val ws: WSClient)(implicit private
 
       case Request(n) =>
 
-        getMachineInfo(machineId).foreach(onNext)
+        getAsync().foreach(onNext)
 
       case Cancel => context.stop(self)
     }
