@@ -62,13 +62,13 @@ class SamplingService @Inject() (private val client: MachineParkApiClient, priva
 
       val sampler = client.newMachineInfoSource(machineId)
 
-      val zip1 = builder.add(ZipWith[Unit, MachineInfo, MachineInfo]((_, md) => md))
+      val zipper1 = builder.add(ZipWith[Unit, MachineInfo, MachineInfo]((_, md) => md))
 
-      val zip2 = builder.add(ZipWith[MachineInfo, Double, Sample]((mi, avg) => Sample(mi, avg)))
+      val zipper2 = builder.add(ZipWith[MachineInfo, Double, Sample]((mi, avg) => Sample(mi, avg)))
 
       val splitter = builder.add(Broadcast[MachineInfo](2))
 
-      val store = builder.add(Flow[Sample].mapAsync(1)(samplesRepository.save(_)))
+      val perister = builder.add(Flow[Sample].mapAsync(1)(samplesRepository.save(_)))
 
       val average = builder
         .add(Flow[MachineInfo]
@@ -81,19 +81,19 @@ class SamplingService @Inject() (private val client: MachineParkApiClient, priva
 
       val zero = Source.single[Double](0.0)
 
-      val merge = builder.add(MergePreferred[Double](1))
+      val merger = builder.add(MergePreferred[Double](1))
 
-      throttler ~> zip1.in0
+      throttler ~> zipper1.in0
 
-      sampler ~> zip1.in1
+      sampler ~> zipper1.in1
 
-      zip1.out ~> splitter ~> zip2.in0
+      zipper1.out ~> splitter ~> zipper2.in0
 
-      zero ~> merge.preferred
+      zero ~> merger.preferred
       
-      splitter ~> average ~> merge ~> compensate ~> zip2.in1
+      splitter ~> average ~> merger ~> compensate ~> zipper2.in1
       
-      zip2.out ~> store ~> Sink.foreach[Sample](println)
+      zipper2.out ~> perister ~> Sink.foreach[Sample](println)
 
       ClosedShape
     })
