@@ -25,7 +25,6 @@ import akka.stream.ActorMaterializer
 
 import play.api.Logger
 
-import actors.MachineSampler
 import model._
 import repository.SamplesRepository
 
@@ -40,64 +39,80 @@ class SamplingService @Inject() (private val client: MachineParkApiClient, priva
 
   val logger: Logger = Logger(this.getClass())
 
-  val supervision: Supervision.Decider = {
-    case e: Exception => logger.error("Error", e); Supervision.Restart
-  }
-
   val rate = 5 seconds
 
   val offset = 10
 
-  def connect(sink: Sink[Sample, _], machineId: UUID): Unit = {
+  private val machineMonitoringFlow = Flow.fromGraph(GraphDSL.create() { implicit builder =>
 
-    implicit val mat = ActorMaterializer(
-        ActorMaterializerSettings(actorSystem)
-          .withSupervisionStrategy(supervision))
+    import GraphDSL.Implicits._
 
-    val flow = RunnableGraph.fromGraph(GraphDSL.create() { implicit builder =>
+    val throttler = Source.tick[Unit](rate, rate, () => ())
+
+    val zipper1 = builder.add(ZipWith[Unit, MachineInfo, MachineInfo]((_, md) => md))
+
+    val zipper2 = builder.add(ZipWith[MachineInfo, Double, MachineInfoWithAverageCurrent] {
+      (mi, avg) => MachineInfoWithAverageCurrent(mi, avg)
+    })
+
+    val splitter = builder.add(Broadcast[MachineInfo](2))
+
+    val perister = builder.add(Flow[MachineInfoWithAverageCurrent]
+      .mapAsync(1)(samplesRepository.save(_)))
+
+    val average = builder
+      .add(Flow[MachineInfo]
+        .map(_.status.current).sliding(offset)
+        .map(x => x.sum / x.size.toDouble))
+
+    val compensate: FlowShape[Double, Double] = builder
+      .add(Flow[Double]
+        .expand(Iterator.continually(_)))
+
+    val zero = Source.single[Double](0.0)
+
+    val merger = builder.add(MergePreferred[Double](1))
+
+    throttler ~> zipper1.in0
+
+    zipper1.out ~> splitter ~> zipper2.in0
+
+    zero ~> merger.preferred
+
+    splitter ~> average ~> merger ~> compensate ~> zipper2.in1
+
+    zipper2.out ~> perister
+
+    FlowShape(zipper1.in1, perister.out)
+  })
+
+  def newMachineMonitoringSource(machineId: UUID): Source[MachineInfoWithAverageCurrent, _] = {
+    Source.fromGraph(GraphDSL.create() { implicit builder =>
 
       import GraphDSL.Implicits._
 
-      val throttler = Source.tick[Unit](rate, rate, () => ())
+      val source = client.newMachineInfoSource(machineId)
 
-      val sampler = client.newMachineInfoSource(machineId)
+      val flow = builder.add(machineMonitoringFlow)
 
-      val zipper1 = builder.add(ZipWith[Unit, MachineInfo, MachineInfo]((_, md) => md))
+      source ~> flow
 
-      val zipper2 = builder.add(ZipWith[MachineInfo, Double, Sample]((mi, avg) => Sample(mi, avg)))
-
-      val splitter = builder.add(Broadcast[MachineInfo](2))
-
-      val perister = builder.add(Flow[Sample].mapAsync(1)(samplesRepository.save(_)))
-
-      val average = builder
-        .add(Flow[MachineInfo]
-          .map(_.status.current).sliding(offset)
-          .map(x => x.sum / x.size.toDouble))
-
-      val compensate: FlowShape[Double, Double] = builder
-        .add(Flow[Double]
-          .expand(Iterator.continually(_)))
-
-      val zero = Source.single[Double](0.0)
-
-      val merger = builder.add(MergePreferred[Double](1))
-
-      throttler ~> zipper1.in0
-
-      sampler ~> zipper1.in1
-
-      zipper1.out ~> splitter ~> zipper2.in0
-
-      zero ~> merger.preferred
-      
-      splitter ~> average ~> merger ~> compensate ~> zipper2.in1
-      
-      zipper2.out ~> perister ~> Sink.foreach[Sample](println)
-
-      ClosedShape
+      SourceShape(flow.out)
     })
+  }
 
-    flow.run()
+  def newMachinesMonitoringSource(machines: List[UUID]): Source[MachineInfoWithAverageCurrent, _] = {
+    Source.fromGraph(GraphDSL.create() { implicit builder =>
+
+      import GraphDSL.Implicits._
+
+      val merger = builder.add(Merge[MachineInfoWithAverageCurrent](machines.size))
+
+      machines.foreach { machineId =>
+        merger <~ newMachineMonitoringSource(machineId)
+      }
+
+      SourceShape(merger.out)
+    })
   }
 }

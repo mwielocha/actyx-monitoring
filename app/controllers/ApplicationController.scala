@@ -9,11 +9,16 @@ import play.api.mvc.Action
 import service.SamplingService
 
 import akka.stream.scaladsl.Sink
-import model.Sample
+import model.MachineInfoWithAverageCurrent
 import service.MachineParkApiClient
 import scala.concurrent.ExecutionContext
 import play.api.Logger
 
+import akka.stream.Supervision
+
+import akka.stream.ActorMaterializerSettings
+import akka.stream.ActorMaterializer
+import akka.actor.ActorSystem
 
 
 /**
@@ -24,19 +29,27 @@ import play.api.Logger
 class ApplicationController @Inject() (
   private val client: MachineParkApiClient,
   val samplingService: SamplingService)
-  (private implicit val ec: ExecutionContext) extends Controller {
+  (implicit private val actorSystem: ActorSystem,
+    private val ec: ExecutionContext) extends Controller {
 
   val logger = Logger(getClass)
 
+  private val supervision: Supervision.Decider = {
+    case e: Exception => logger.error("Error", e); Supervision.Restart
+  }
+
+  private implicit val mat = ActorMaterializer(
+    ActorMaterializerSettings(actorSystem)
+      .withSupervisionStrategy(supervision))
+
   def main = Action.async {
 
-    val sink = Sink.foreach[Sample](println)
+    val sink = Sink.foreach[MachineInfoWithAverageCurrent](println)
 
     client.getMachines.map { machines =>
-      machines.foreach { machineId =>
-        logger.info(s"Connecting to $machineId")
-        samplingService.connect(sink, machineId)
-      }
+      val source = samplingService.newMachinesMonitoringSource(machines)
+      val flow = source to sink
+      flow.run()
       Ok
     }
   }

@@ -7,7 +7,7 @@ import io.getquill._
 import io.getquill.naming.SnakeCase
 
 
-import model.Sample
+import model.MachineInfoWithAverageCurrent
 import org.joda.time.DateTime
 import java.util.Date
 import scala.concurrent.Future
@@ -48,12 +48,12 @@ class SamplesRepository @Inject() (implicit private val ec: ExecutionContext) {
     ).usingTtl(`24hours`)
   }
 
-  def save(sa: Sample): Future[Sample] = {
+  def save(e: MachineInfoWithAverageCurrent): Future[MachineInfoWithAverageCurrent] = {
     db.run(insert)(
-      sa.machineInfo.id,
-      sa.machineInfo.status.name,
-      sa.machineInfo.status.current,
-      sa.timestamp
-    ).map(_ => sa)
+      e.machineInfo.id,
+      e.machineInfo.status.name,
+      e.machineInfo.status.current,
+      DateTime.now
+    ).map(_ => e)
   }
 }
