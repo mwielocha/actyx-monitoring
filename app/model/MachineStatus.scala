@@ -12,8 +12,6 @@ case class MachineStatus(name: String, timestamp: DateTime, current: Double)
 
 object MachineStatus {
 
-  implicit val jodaDateReads = Reads.jodaDateReads("yyyy-MM-dd'T'HH:mm:ss.SSSSSS")
-
   implicit val machineDataReads = Json.reads[MachineStatus]
 
 }
