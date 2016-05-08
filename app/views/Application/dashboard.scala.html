@@ -104,7 +104,7 @@ $(document).ready(function () {
               type: 'error',
               maxVisible: 10,
               layout: 'topRight',
-              closeWith: ['hover'],
+              closeWith: ['click'],
               dismissQueue: true,
               force: true,
               callback: {
@@ -112,7 +112,14 @@ $(document).ready(function () {
                   afterShow: function() {},
                   onClose: function() { vn -= 1; },
                   afterClose: function() {},
-                  onCloseClick: function() {},
+                  onCloseClick: function() {
+                      $('html, body').animate({
+                          scrollTop: $('#' + machine.id).offset().top
+                      }, 2000, 'swing', function() {
+                          console.log("Hi!");
+                          $('#' + machine.id).fadeOut(100).fadeIn(100);
+                      });
+                  },
               }
           });
       }
@@ -207,7 +214,7 @@ $(document).ready(function () {
     ================================================== -->
     <!-- Placed at the end of the document so the pages load faster -->
     <script type="text/javascript" src="assets/js/bootstrap.js"></script>
-    
+    <script type="text/javascript" src="assets/js/jquery.pulse.min.js"></script>
 	
 	<!-- NOTY JAVASCRIPT -->
 	<script type="text/javascript" src="assets/js/noty/jquery.noty.js"></script>
