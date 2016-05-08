@@ -17,7 +17,12 @@ object MachineInfo {
       Json.obj(
         "id" -> mi.id,
         "name" -> mi.status.name,
+        "type" -> mi.status.machineType,
+        "state" -> mi.status.state,
+        "status" -> mi.status.status,
         "current" -> mi.status.current,
+        "timestamp" -> mi.status.timestamp,
+        "current_alert" -> mi.status.currentAlert,
         "average_current" -> mi.averageCurrent
       )
     }

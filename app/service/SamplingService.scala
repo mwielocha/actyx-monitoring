@@ -39,7 +39,7 @@ class SamplingService @Inject() (private val client: MachineParkApiClient, priva
 
   val logger: Logger = Logger(this.getClass())
 
-  val offset = 10
+  val offset = 60 // 5 minutes average
 
   private val machineMonitoringFlow = Flow.fromGraph(GraphDSL.create() { implicit builder =>
 

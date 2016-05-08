@@ -74,7 +74,7 @@ class ApplicationController @Inject() (
 
   def main = Action.async { implicit request =>
     client.getMachines.map {
-      case Right(machines) => Ok(views.html.Application.main(machines))
+      case Right(machines) => Ok(views.html.Application.dashboard(machines))
       case Left(ex) => InternalServerError(ex.getMessage)
     }
   }
@@ -97,7 +97,6 @@ class ApplicationController @Inject() (
 
     def receive = {
       case e: MachineInfo =>
-        log.info("Tick!")
         out ! Json.toJson(e)
     }
   }
