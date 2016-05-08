@@ -26,10 +26,24 @@ class MachineStatusSpec extends FlatSpec with Matchers {
       "name": "DMG DMU 40eVo [#50]"
     }"""
 
+    /*
+       name: String,
+  timestamp: DateTime,
+  current: Double,
+  state: String,
+  location: String,
+  machineType: String,
+  currentAlert: Double) {
+     */
+
     Json.parse(raw).as[MachineStatus] shouldBe MachineStatus(
       "DMG DMU 40eVo [#50]",
       DateTime.parse("2016-05-04T17:09:51.320410"),
-      12.21)
+      12.21,
+      "working",
+      "0.0,0.0",
+      "mill",
+      14.0)
   }
 }
 
