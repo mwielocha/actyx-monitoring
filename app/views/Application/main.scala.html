@@ -26,7 +26,7 @@
 
     socket.onmessage = function (event) {
       var machineInfo = JSON.parse(event.data);
-      $('#' + machineInfo.id).find('.machine_name').text(machineInfo.name);
+      $('#' + machineInfo.id).find('.machine_name').text(machineInfo.name + " : " + machineInfo.current);
     }
   
 </script>

@@ -9,6 +9,8 @@
 
 
     <logger name="io.getquill" level="off" />
+
+    <logger name="actors" level="debug" />
     <logger name="service" level="info" />
     
     <root level="info">
