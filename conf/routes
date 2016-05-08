@@ -1,5 +1,6 @@
-GET         /assets/*file                       controllers.Assets.at(path="/public", file)
-
 GET         /                                   @controllers.ApplicationController.main
 GET         /socket                             @controllers.ApplicationController.socket
+
+GET         /assets/*file                       controllers.Assets.at(path="/public", file)
+
 
