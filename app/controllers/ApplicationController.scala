@@ -65,8 +65,10 @@ class ApplicationController @Inject() (
 
   initialize()
 
-  def main = Action.async {
-    Future.successful(Ok)
+  def main = Action.async { implicit request =>
+    client.getMachines.map { machines =>
+      Ok(views.html.Application.main(machines))
+    }
   }
 
   def socket = WebSocket.accept[JsValue, JsValue] { request =>
