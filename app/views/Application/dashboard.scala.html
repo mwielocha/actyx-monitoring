@@ -69,9 +69,11 @@ $(document).ready(function () {
       square.find('.current_alert').text(machine.current_alert);
 
       var previousCurrent = parseFloat(square.find('.current').text());
-      var currentImage = 'assets/img/up.png';
+      var currentImage = '';
       if(machine.current < previousCurrent) {
           currentImage = 'assets/img/down.png';
+      } else if (machine.current > previousCurrent) {
+          currentImage = 'assets/img/up.png';
       }
         
       square.find('.current').text(machine.current);
@@ -83,16 +85,20 @@ $(document).ready(function () {
       square.find('.location').text(machine.location);
         
       var previousAverage = parseFloat(square.find('.average_current').text());
-      var averageImage = 'assets/img/up-small.png';
+      var averageImage = '';
       if(machine.average_current < previousAverage) {
           averageImage = 'assets/img/down-small.png';
+      } else if (machine.average_current > previousAverage) {
+         averageImage = 'assets/img/up-small.png' 
       }
       square.find('.average_current').text(machine.average_current);
       square.find('.average_arrow').attr('src', averageImage);
 
       if(machine.status == 'critical' && previousCurrent != machine.current && vn < 10) {
           noty({
-              text: '[' + new Date(machine.timestamp) + '] ' + machine.name + ' current above threshold, average from last 5 minutes is: ' + machine.average_current,
+              text: '[' + new Date(machine.timestamp) + '] '
+                  + machine.name + ' current above threshold, average from last 5 minutes is: '
+                  + machine.average_current.toFixed(2),
               type: 'error',
               maxVisible: 10,
               layout: 'topRight',
