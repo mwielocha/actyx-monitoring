@@ -12,7 +12,7 @@ case class MachineStatus(name: String, timestamp: DateTime, current: Double)
 
 object MachineStatus {
 
-  implicit val machineDataReads = Json.reads[MachineStatus]
-
+  implicit val MachineStatusReads = Json.reads[MachineStatus]
+ 
 }
 

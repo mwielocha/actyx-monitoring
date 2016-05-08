@@ -141,7 +141,7 @@ class SamplingService @Inject() (private val client: MachineParkApiClient, priva
     })
   }
 
-  def newMonitoringSource(machines: List[UUID]): Source[MachineWithEnvironmentalInfo, _] = {
+  def newMonitoringSource(machines: List[UUID]): Source[MachineInfo, _] = {
     Source.fromGraph(GraphDSL.create() { implicit builder =>
 
       import GraphDSL.Implicits._
@@ -151,18 +151,19 @@ class SamplingService @Inject() (private val client: MachineParkApiClient, priva
         (m, e) => MachineWithEnvironmentalInfo(m, e)
       })
 
-      val perister = builder.add(
-        Flow[MachineWithEnvironmentalInfo]
-          .mapAsync(1)(samplesRepository.save(_))
-      )
+      val perister = Sink.foreachParallel[MachineWithEnvironmentalInfo](1)(samplesRepository.save(_))
 
-      newMachinesMonitoringSource(machines) ~> zipper.in0
+      val splitter = builder.add(Broadcast[MachineInfo](2))
+
+      newMachinesMonitoringSource(machines) ~> splitter
+
+      splitter ~> zipper.in0
 
       newEnvironmentMonitoringSource ~> zipper.in1
 
       zipper.out ~> perister
 
-      SourceShape(perister.out)
+      SourceShape(splitter.out(1))
     })
   }
 }
