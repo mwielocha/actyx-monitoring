@@ -77,4 +77,4 @@ flycheck_*.el
 # projectiles files
 .projectile
 *.deb
-
+logs

@@ -59,9 +59,7 @@ $(document).ready(function () {
  $(window).load(function(){
 
     var socket = new WebSocket('@routes.ApplicationController.socket.webSocketURL()');
-
-    var vn = 0;
-
+      
     socket.onmessage = function (event) {
       var machine = JSON.parse(event.data);
       var square = $('#' + machine.id);
@@ -96,8 +94,8 @@ $(document).ready(function () {
       square.find('.average_arrow').attr('src', averageImage);
       square.find('.timestamp').text(new Date(machine.timestamp));
 
-      if(machine.status == 'critical' && previousCurrent != machine.current && vn < 10) {
-          noty({
+      if(machine.status == 'critical' && previousCurrent != machine.current) {
+          var n = noty({
               text: '[' + new Date(machine.timestamp) + '] '
                   + machine.name + ' current above threshold, average from last 5 minutes is: '
                   + machine.average_current.toFixed(2),
@@ -108,15 +106,16 @@ $(document).ready(function () {
               dismissQueue: true,
               force: true,
               callback: {
-                  onShow: function() { vn += 1; },
-                  afterShow: function() {},
-                  onClose: function() { vn -= 1; },
+                  onShow: function() {},
+                  afterShow: function() {
+                      setTimeout(function() { n.close(); }, 5000);
+                  },
+                  onClose: function() {},
                   afterClose: function() {},
                   onCloseClick: function() {
                       $('html, body').animate({
                           scrollTop: $('#' + machine.id).offset().top
                       }, 2000, 'swing', function() {
-                          console.log("Hi!");
                           $('#' + machine.id).fadeOut(100).fadeIn(100);
                       });
                   },
