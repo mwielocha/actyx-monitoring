@@ -63,6 +63,13 @@ $(document).ready(function () {
     socket.onmessage = function (event) {
       var machine = JSON.parse(event.data);
       var square = $('#' + machine.id);
+
+      if(machine.state != 'working') {
+          square.addClass('off');
+      } else {
+          square.removeClass('off');
+      }
+        
       square.find('.machine_name').text(machine.name);
       square.find('.current_alert').text(machine.current_alert.toFixed(2));
 
@@ -130,6 +137,10 @@ $(document).ready(function () {
 
 </script>
 <style>
+  .off {
+    background-color: black;
+  }
+  
   .critical {
     color: red;
     font-weight: bold;

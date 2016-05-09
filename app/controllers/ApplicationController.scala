@@ -74,7 +74,7 @@ class ApplicationController @Inject() (
 
   def main = Action.async { implicit request =>
     client.getMachines.map {
-      case Right(machines) => Ok(views.html.Application.dashboard(machines))
+      case Right(machines) => Ok(views.html.Application.dashboard(machines.sorted))
       case Left(ex) => InternalServerError(ex.getMessage)
     }
   }
