@@ -1,3 +1,5 @@
+import com.typesafe.sbt.SbtNativePackager._
+import NativePackagerKeys._
 
 // Generated with scalagen
 
@@ -18,3 +20,8 @@ libraryDependencies ++= Seq(
     "org.scalatest" %% "scalatest" % "2.2.6" % "test"
   )
 
+maintainer in Linux := "Mikolaj Wielocha <mwielocha@icloud.com>"
+
+packageSummary in Linux := "Actyx Machine Park Monitoring App"
+
+packageDescription := "Actyx Machine Park Monitoring App"
