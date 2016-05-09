@@ -63,8 +63,8 @@ $(document).ready(function () {
     socket.onmessage = function (event) {
       var machine = JSON.parse(event.data);
       var square = $('#' + machine.id);
-      square.find('.machine_name').text(machine.name + ' [' + machine.type + ']');
-      square.find('.current_alert').text(machine.current_alert);
+      square.find('.machine_name').text(machine.name);
+      square.find('.current_alert').text(machine.current_alert.toFixed(2));
 
       var previousCurrent = parseFloat(square.find('.current').text());
       var currentImage = '';
@@ -187,12 +187,12 @@ $(document).ready(function () {
 			          <h4 class="modal-title machine_name">@machine</h4>
 			        </div>
 			        <div class="modal-body">
-                      <p>timestamp: <span class="timestamp">-</span></p>
-			          <p>current: <span class="current">0.0</span></p>
-                      <p>average current (last 5 min.): <span class="average_current">0</span></p>
-                      <p>max current: <span class="current_alert">0.0</span></p>
-                      <p>location: <span class="location">-</span></p>
                       <p>type: <span class="type">unknown</span></p>
+                      <p>timestamp: <span class="timestamp">-</span></p>
+			          <p>current: <span class="current">0.0</span> Amps</p>
+                      <p>average current 5 minutes: <span class="average_current">0.0</span> Amps</p>
+                      <p>max current: <span class="current_alert">0.0</span> Amps</p>
+                      <p>location: <span class="location">-</span></p>
 			        </div>
 			        <div class="modal-footer">
 			          <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
