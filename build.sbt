@@ -1,6 +1,3 @@
-import com.typesafe.sbt.SbtNativePackager._
-import NativePackagerKeys._
-
 // Generated with scalagen
 
 lazy val root = (project in file(".")).
