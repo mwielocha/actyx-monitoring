@@ -81,6 +81,8 @@ $(document).ready(function () {
       square.find('.state').text(machine.state);
       square.find('.type').text(machine.type);
       square.find('.location').text(machine.location);
+
+      square.find('.state').text(machine.state);
         
       var previousAverage = parseFloat(square.find('.average_current').text());
       var averageImage = '';
@@ -187,9 +189,10 @@ $(document).ready(function () {
 			          <h4 class="modal-title machine_name">@machine</h4>
 			        </div>
 			        <div class="modal-body">
-                      <p>type: <span class="type">unknown</span></p>
                       <p>timestamp: <span class="timestamp">-</span></p>
-			          <p>current: <span class="current">0.0</span> Amps</p>
+                      <p>type: <span class="type">unknown</span></p>
+                      <p>state: <span class="state">unknown</span></p>
+                      <p>current: <span class="current">0.0</span> Amps</p>
                       <p>average current 5 minutes: <span class="average_current">0.0</span> Amps</p>
                       <p>max current: <span class="current_alert">0.0</span> Amps</p>
                       <p>location: <span class="location">-</span></p>
