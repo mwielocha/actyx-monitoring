@@ -1,24 +1,13 @@
 package repository
 
-import javax.inject.Inject
+import java.util.{Date, UUID}
 import javax.inject.Singleton
 
 import io.getquill._
-import io.getquill.naming.SnakeCase
-
-
-import model.MachineWithEnvironmentalInfo
+import model.MachineWithEnvInfo
 import org.joda.time.DateTime
-import java.util.Date
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext
 
-import scala.util.Success
-import scala.util.Failure
-
-import io.getquill.sources.cassandra.ops._
-
-import java.util.UUID
+import scala.concurrent.{ExecutionContext, Future}
 
 
 /**
@@ -26,42 +15,43 @@ import java.util.UUID
  */
 
 @Singleton
-class SamplesRepository @Inject() (implicit private val ec: ExecutionContext) {
+class SamplesRepository {
 
-  val `24hours` = quote(86400)
+  private val ctx = new CassandraAsyncContext[SnakeCase]("db")
 
-  implicit val encodeDateTime = mappedEncoding[DateTime, Date](_.toDate())
-  implicit val decodeDateTime = mappedEncoding[Date, DateTime](new DateTime(_))
+  import ctx._
 
-  case class Samples(id: UUID, name: String, current: Double,
-    pressure: Double, humidity: Double, temperatur: Double, timestamp: DateTime)
+  private val `24hours` = quote(86400)
 
-  lazy val db = source(new CassandraAsyncSourceConfig[SnakeCase]("db"))
+  implicit private val encodeDateTime = MappedEncoding[DateTime, Date](_.toDate())
+  implicit private val decodeDateTime = MappedEncoding[Date, DateTime](new DateTime(_))
 
-  val insert = quote {
-    (id: UUID, name: String, current: Double,
-    pressure: Double, humidity: Double, temperatur: Double, timestamp: DateTime) =>
+  case class Sample(
+    id: UUID,
+    name: String,
+    current: Double,
+    pressure: Double,
+    humidity: Double,
+    temperature: Double,
+    timestamp: DateTime
+  )
 
-    query[Samples].insert(
-      _.id -> id,
-      _.name -> name,
-      _.current -> current,
-      _.pressure -> pressure,
-      _.humidity -> humidity,
-      _.temperatur -> temperatur,
-      _.timestamp -> timestamp
-    ).usingTtl(`24hours`)
-  }
+  def save(e: MachineWithEnvInfo)(implicit ec: ExecutionContext): Future[MachineWithEnvInfo] = {
 
-  def save(e: MachineWithEnvironmentalInfo): Future[MachineWithEnvironmentalInfo] = {
-    db.run(insert)(
+    val sample = Sample(
       e.machineInfo.id,
       e.machineInfo.status.name,
       e.machineInfo.status.current,
-      e.environmentalInfo.pressure.value,
-      e.environmentalInfo.humidity.value,
-      e.environmentalInfo.temperature.value,
+      e.envInfo.pressure.value,
+      e.envInfo.humidity.value,
+      e.envInfo.temperature.value,
       DateTime.now
-    ).map(_ => e)
+    )
+
+    ctx.run {
+      query[Sample]
+        .insert(lift(sample))
+        .usingTtl(`24hours`)
+    }.map(_ => e)
   }
 }

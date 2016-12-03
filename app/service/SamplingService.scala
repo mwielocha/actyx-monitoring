@@ -85,10 +85,10 @@ class SamplingService @Inject() (private val client: MachineParkApiClient, priva
 
     val throttler = Source.tick[Unit](0 seconds, 1 minute, () => ())
 
-    val zipper = builder.add(ZipWith[Unit, EnvironmentalInfo, EnvironmentalInfo]((_, md) => md))
+    val zipper = builder.add(ZipWith[Unit, EnvInfo, EnvInfo]((_, md) => md))
 
-    val compensate: FlowShape[EnvironmentalInfo, EnvironmentalInfo] = builder
-      .add(Flow[EnvironmentalInfo]
+    val compensate: FlowShape[EnvInfo, EnvInfo] = builder
+      .add(Flow[EnvInfo]
         .expand(Iterator.continually(_)))
 
     throttler ~> zipper.in0
@@ -128,7 +128,7 @@ class SamplingService @Inject() (private val client: MachineParkApiClient, priva
     })
   }
 
-  def newEnvironmentMonitoringSource: Source[EnvironmentalInfo, _] = {
+  def newEnvironmentMonitoringSource: Source[EnvInfo, _] = {
     Source.fromGraph(GraphDSL.create() { implicit builder =>
 
       import GraphDSL.Implicits._
@@ -146,12 +146,12 @@ class SamplingService @Inject() (private val client: MachineParkApiClient, priva
 
       import GraphDSL.Implicits._
 
-      val zipper = builder.add(ZipWith[MachineInfo, EnvironmentalInfo, MachineWithEnvironmentalInfo] {
+      val zipper = builder.add(ZipWith[MachineInfo, EnvInfo, MachineWithEnvInfo] {
 
-        (m, e) => MachineWithEnvironmentalInfo(m, e)
+        (m, e) => MachineWithEnvInfo(m, e)
       })
 
-      val perister = Sink.foreachParallel[MachineWithEnvironmentalInfo](1)(samplesRepository.save(_))
+      val perister = Sink.foreachParallel[MachineWithEnvInfo](1)(samplesRepository.save(_))
 
       val splitter = builder.add(Broadcast[MachineInfo](2))
 

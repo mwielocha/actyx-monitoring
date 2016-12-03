@@ -21,7 +21,7 @@ class EnvironmentalInfoSpec extends FlatSpec with Matchers {
 	  "humidity": ["2016-05-06T16:10:00", 91.319999999999993]
     }"""
 
-    Json.parse(raw).as[EnvironmentalInfo] shouldBe EnvironmentalInfo(
+    Json.parse(raw).as[EnvInfo] shouldBe EnvInfo(
       Metric(1004.01, DateTime.parse("2016-05-06T16:10:00")),
       Metric(91.319999999999993, DateTime.parse("2016-05-06T16:10:00")),
       Metric(16.829999999999998, DateTime.parse("2016-05-06T16:10:00"))

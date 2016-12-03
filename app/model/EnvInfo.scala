@@ -30,11 +30,11 @@ object Metric {
   }
 }
 
-case class EnvironmentalInfo(pressure: Metric, humidity: Metric, temperature: Metric)
+case class EnvInfo(pressure: Metric, humidity: Metric, temperature: Metric)
 
-object EnvironmentalInfo {
+object EnvInfo {
 
-  implicit val reads = Json.reads[EnvironmentalInfo]
+  implicit val reads = Json.reads[EnvInfo]
 
 }
 

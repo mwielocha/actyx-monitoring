@@ -5,13 +5,13 @@ CREATE KEYSPACE "actyx" WITH replication = {
 
 USE "actyx";
 
-CREATE TABLE "samples" (
+CREATE TABLE "sample" (
     id UUID,
     name text,
     current double,
     pressure double,
     humidity double,
-    temperatur double,
+    temperature double,
     timestamp timestamp,
     PRIMARY KEY (id, timestamp)
 ) with CLUSTERING ORDER BY (timestamp DESC);

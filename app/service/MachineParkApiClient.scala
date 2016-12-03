@@ -100,15 +100,15 @@ class MachineParkApiClient @Inject() (
 
   val environmentalSensorUrl = "http://machinepark.actyx.io/api/v1/env-sensor"
 
-  def getEnvironmentalInfo: Future[Either[Throwable, EnvironmentalInfo]] = {
+  def getEnvironmentalInfo: Future[Either[Throwable, EnvInfo]] = {
     ws.url(environmentalSensorUrl).get().map {
-      case response if response.status == 200 => Right(response.json.as[EnvironmentalInfo])
+      case response if response.status == 200 => Right(response.json.as[EnvInfo])
       case response => logger.error(response.body); Left(new RuntimeException(response.body))
      }
   }
 
-  def newEnvironmentalInfoSource: Source[EnvironmentalInfo, _] = Source.actorPublisher {
-    Props(new AsyncPublisher[EnvironmentalInfo](() => getEnvironmentalInfo))
+  def newEnvironmentalInfoSource: Source[EnvInfo, _] = Source.actorPublisher {
+    Props(new AsyncPublisher[EnvInfo](() => getEnvironmentalInfo))
   }
 
   private [MachineParkApiClient] class AsyncPublisher[T](getAsync: () => Future[Either[Throwable, T]])

@@ -4,17 +4,17 @@ lazy val root = (project in file(".")).
   settings(
     name := "actyx-monitoring",
     version := "1.0",
-    scalaVersion := "2.11.7"
+    scalaVersion := "2.11.8"
   ).enablePlugins(play.sbt.PlayScala)
 
 //mainClass in (Compile, run) := Some("...")
 
 libraryDependencies ++= Seq(
     cache,
-    "com.typesafe.play" %% "play-ws" % "2.5.3",
-    "com.typesafe.play" %% "play-json" % "2.5.3",
-    "io.getquill" %% "quill-cassandra" % "0.5.0",
-    "org.scalatest" %% "scalatest" % "2.2.6" % "test"
+    "com.typesafe.play" %% "play-ws" % "2.5.10",
+    "com.typesafe.play" %% "play-json" % "2.5.10",
+    "io.getquill" %% "quill-cassandra" % "1.0.1",
+    "org.scalatest" %% "scalatest" % "3.0.0" % "test"
   )
 
 maintainer in Linux := "Mikolaj Wielocha <mwielocha@icloud.com>"
