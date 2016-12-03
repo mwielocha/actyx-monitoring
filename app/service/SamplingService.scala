@@ -79,7 +79,7 @@ class SamplingService @Inject() (private val client: MachineParkApiClient, priva
     FlowShape(zipper1.in1, zipper2.out)
   })
 
-  val environmentMonitoringFlow = Flow.fromGraph(GraphDSL.create() { implicit builder =>
+  val envMonitoringFlow = Flow.fromGraph(GraphDSL.create() { implicit builder =>
 
     import GraphDSL.Implicits._
 
@@ -103,11 +103,9 @@ class SamplingService @Inject() (private val client: MachineParkApiClient, priva
 
       import GraphDSL.Implicits._
 
-      val source = client.newMachineInfoSource(machineId)
-
       val flow = builder.add(machineMonitoringFlow)
 
-      source ~> flow
+      client.machineInfoSource(machineId) ~> flow
 
       SourceShape(flow.out)
     })
@@ -133,9 +131,9 @@ class SamplingService @Inject() (private val client: MachineParkApiClient, priva
 
       import GraphDSL.Implicits._
 
-      val flow = builder.add(environmentMonitoringFlow)
+      val flow = builder.add(envMonitoringFlow)
 
-      client.newEnvironmentalInfoSource ~> flow
+      client.envInfoSource ~> flow
 
       SourceShape(flow.out)
     })

@@ -12,7 +12,9 @@ case class MachineInfo(id: UUID, status: MachineStatus, averageCurrent: Double =
 
 object MachineInfo {
 
-  implicit val MachineInfoWrites = new Writes[MachineInfo] {
+  implicit val reads = Json.reads[MachineInfo]
+
+  implicit val writes = new Writes[MachineInfo] {
     override def writes(mi: MachineInfo): JsValue = {
       Json.obj(
         "id" -> mi.id,

@@ -1,41 +1,24 @@
 package service
 
-import scala.concurrent.Future
 import java.util.UUID
+import javax.inject.{Inject, Singleton}
 
-import javax.inject.Inject
-import javax.inject.Singleton
-
-import scala.concurrent.ExecutionContext
-
-import play.api.libs.ws._
-import play.api.Logger
-import play.api.libs.json.Json
-import play.api.cache._
-
-import model._
-import org.joda.time.DateTime
-
-import akka.stream.scaladsl.Source
-import akka.NotUsed
-import akka.actor.Props
-import akka.stream.actor.ActorPublisher
-import akka.actor.ActorLogging
-import akka.stream.actor.ActorPublisherMessage._
-import akka.stream.scaladsl.Flow
-
-import akka.actor.Actor
 import akka.actor.ActorSystem
-import akka.pattern._
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.{HttpRequest, HttpResponse, ResponseEntity}
+import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
+import akka.stream.scaladsl.{Flow, Sink, Source}
+import akka.stream.{ActorMaterializer, ThrottleMode}
 import akka.util.Timeout
+import de.heikoseeberger.akkahttpplayjson.PlayJsonSupport
+import model._
+import play.api.cache._
+import play.api.libs.ws._
 
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
-
-
-import actors._
-
-import scala.Either
+import scala.util.{Success, Try}
 
 
 /**
@@ -45,88 +28,73 @@ import scala.Either
 @Singleton
 class MachineParkApiClient @Inject() (
   private val ws: WSClient,
-  private val cache: CacheApi)(
+  private val cache: CacheApi
+)(
   implicit private val ec: ExecutionContext,
-  private val actorSystem: ActorSystem) {
+  private val actorSystem: ActorSystem
+) extends PlayJsonSupport {
 
-  val logger = Logger(getClass)
+  private implicit val materializer = ActorMaterializer()
 
-  val UUIDRegex = "[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}".r
+  private val http = Http(actorSystem)
 
-  val machineUrl = "http://machinepark.actyx.io/api/v1/machine"
+  private val actyxConnPool = {
+    http.newHostConnectionPool[Unit]("machinepark.actyx.io")
+    .throttle(80, 1 second, 80, ThrottleMode.Shaping)
+  }
 
-  val machineEnpointThrottler = actorSystem.actorOf(Throttler.props(15 millis))
+  private val UUIDRegex = "[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}".r
+
+  private val machineUrl = "/api/v1/machine"
 
   private implicit val timeout = Timeout(60 seconds)
 
-  def getMachineInfo(machineId: UUID): Future[Either[Throwable, MachineInfo]] = {
+  private val machinesUrl = "/api/v1/machines"
 
-    for {
-      _ <- machineEnpointThrottler ? Throttler.RequestToken
-      result <- ws.url(s"$machineUrl/$machineId").get().map {
-        case response if response.status == 200 => Right(MachineInfo(machineId, response.json.as[MachineStatus]))
-        case response => logger.error(response.body); Left(new RuntimeException(response.body))
-      }
-    } yield result
+  private val envSensorUrl = "/api/v1/env-sensor"
+
+  private def extract[T](implicit unm: Unmarshaller[HttpResponse, T]) = {
+    Flow[(Try[HttpResponse], Unit)].mapAsync[Option[T]](1) {
+      case (Success(response), _) if response.status.isSuccess() =>
+        Unmarshal(response).to[T].map(Some(_))
+      case _ =>
+        Future.successful(None)
+    }.filterNot(_.isEmpty).map(_.get)
   }
 
-  val machinesUrl = "http://machinepark.actyx.io/api/v1/machines"
+  def envInfoSource: Source[EnvInfo, _] = {
 
-  def getMachines: Future[Either[Throwable, List[UUID]]] = {
+    val element = HttpRequest(uri = envSensorUrl) -> ()
 
-    cache.get[List[UUID]]("machines") match {
-      case Some(machines) => Future.successful(Right(machines))
-      case None =>
-
-        ws.url(machinesUrl).get().map {
-          
-          case response if response.status == 200 =>
-            val machines = response.json.as[List[String]].flatMap {
-              url => UUIDRegex.findFirstIn(url)
-            }.map(UUID.fromString)
-
-            cache.set("machines", machines, 3 minutes)
-
-            Right(machines)
-            
-          case response => logger.error(response.body); Left(new RuntimeException(response.body))
-        }
-      }
+    Source.repeat(element)
+      .via(actyxConnPool)
+      .via(extract[EnvInfo])
   }
 
-  def newMachineInfoSource(machineId: UUID): Source[MachineInfo, _] = {
-    Source.actorPublisher(Props(new AsyncPublisher[MachineInfo]( () => getMachineInfo(machineId))))
-  } 
+  def machines: Future[List[UUID]] = {
 
-  val environmentalSensorUrl = "http://machinepark.actyx.io/api/v1/env-sensor"
+    val element = HttpRequest(uri = machinesUrl) -> ()
 
-  def getEnvironmentalInfo: Future[Either[Throwable, EnvInfo]] = {
-    ws.url(environmentalSensorUrl).get().map {
-      case response if response.status == 200 => Right(response.json.as[EnvInfo])
-      case response => logger.error(response.body); Left(new RuntimeException(response.body))
-     }
-  }
-
-  def newEnvironmentalInfoSource: Source[EnvInfo, _] = Source.actorPublisher {
-    Props(new AsyncPublisher[EnvInfo](() => getEnvironmentalInfo))
-  }
-
-  private [MachineParkApiClient] class AsyncPublisher[T](getAsync: () => Future[Either[Throwable, T]])
-      extends ActorPublisher[T] with ActorLogging {
-
-    import context.dispatcher
-
-    def receive = {
-
-      case Request(n) =>
-
-        getAsync().foreach {
-          case Left(t) => onError(t)
-          case Right(e) => onNext(e)
-        }
-
-      case Cancel => context.stop(self)
+    val parse = Flow[List[String]].map {
+      _.flatMap(UUIDRegex.findFirstIn)
+        .map(UUID.fromString)
     }
+
+    Source.single(element)
+      .via(actyxConnPool)
+      .via(extract[List[String]])
+      .via(parse)
+      .runWith(Sink.head)
+  }
+
+  def machineInfoSource(machineId: UUID): Source[MachineInfo, _] = {
+
+    val element = HttpRequest(uri = s"$machineUrl/$machineId") -> ()
+
+    Source.repeat(element)
+      .via(actyxConnPool)
+      .via(extract[MachineStatus])
+      .map(MachineInfo(machineId, _))
   }
 }
 

@@ -27,7 +27,8 @@ case class MachineStatus(
   state: String,
   location: String,
   machineType: String,
-  currentAlert: Double) {
+  currentAlert: Double
+) {
 
   val status = if(current > currentAlert) "critical"
     else if(current == currentAlert) "warning"
@@ -36,7 +37,7 @@ case class MachineStatus(
 
 object MachineStatus {
 
-  implicit val MachineStatusReads = {
+  implicit val reads = {
     ((__ \ "name").read[String] ~
     (__ \ "timestamp").read[DateTime] ~
     (__ \ "current").read[Double] ~

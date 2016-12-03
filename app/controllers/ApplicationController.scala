@@ -58,28 +58,23 @@ class ApplicationController @Inject() (
   private val webSocketSink = Sink.actorRef(webSocketRegistry, ())
 
   def initialize() = {
-    client.getMachines.foreach {
+    client.machines.foreach { machines =>
 
-      case Right(machines) =>
-
-        val source = samplingService.newMonitoringSource(machines)
-        val flow = source to webSocketSink
-        flow.run()
-
-      case Left(ex) => logger.error("Fatal", ex)
+      val source = samplingService.newMonitoringSource(machines)
+      val flow = source to webSocketSink
+      flow.run()
     }
   }
 
   initialize()
 
   def main = Action.async { implicit request =>
-    client.getMachines.map {
-      case Right(machines) => Ok(views.html.Application.dashboard(machines.sortBy(_.toString)))
-      case Left(ex) => InternalServerError(ex.getMessage)
+    client.machines.map { machines =>
+      Ok(views.html.Application.dashboard(machines.sortBy(_.toString)))
     }
   }
 
-  def socket = WebSocket.accept[JsValue, JsValue] { request =>
+  def socket = WebSocket.accept[JsValue, JsValue] { _ =>
     ActorFlow.actorRef(out => Props(new WebSocketActor(out, webSocketRegistry)))
   }
 
