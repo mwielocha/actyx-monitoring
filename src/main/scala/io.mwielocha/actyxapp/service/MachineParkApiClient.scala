@@ -94,7 +94,7 @@ class MachineParkApiClient @Inject()(
   }
 
   def machines: Future[List[UUID]] = {
-    scalacache.cachingWithTTL(cacheKey)(3 minutes) {
+    scalacache.caching(cacheKey) {
       for {
         response <- http.singleRequest(HttpRequest(uri = machinesUrl))
         _ = if(response.status.isFailure()) logger.error(s"Error fething machines, response was: $response")
