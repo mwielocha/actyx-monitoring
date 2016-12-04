@@ -36,9 +36,9 @@ assemblyMergeStrategy in assembly := {
   case x => (assemblyMergeStrategy in assembly).value(x)
 }
 
-maintainer in Linux := "Mikolaj Wielocha <mwielocha@icloud.com>"
+maintainer := "Mikolaj Wielocha <mwielocha@icloud.com>"
 
-packageSummary in Linux := "Actyx Machine Park Monitoring App"
+packageSummary := "Actyx Machine Park Monitoring App"
 
 packageDescription := "Actyx Machine Park Monitoring App"
 
