@@ -1,3 +1,4 @@
+import com.typesafe.sbt.packager.archetypes.ServerLoader
 // Generated with scalagen
 
 lazy val root = (project in file(".")).
@@ -41,5 +42,7 @@ maintainer := "Mikolaj Wielocha <mwielocha@icloud.com>"
 packageSummary := "Actyx Machine Park Monitoring App"
 
 packageDescription := "Actyx Machine Park Monitoring App"
+
+serverLoading := ServerLoader.Upstart
 
 
