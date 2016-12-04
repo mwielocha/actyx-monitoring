@@ -1,4 +1,4 @@
-package model
+package io.mwielocha.actyxapp.model
 
 import org.joda.time.DateTime
 

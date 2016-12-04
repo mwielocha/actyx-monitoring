@@ -1,3 +1,5 @@
+package io.mwielocha.actyxapp
+
 import play.api.libs.json._
 
 /**

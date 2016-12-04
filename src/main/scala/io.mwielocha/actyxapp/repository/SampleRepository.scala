@@ -1,10 +1,10 @@
-package repository
+package io.mwielocha.actyxapp.repository
 
 import java.util.{Date, UUID}
-import javax.inject.Singleton
+import javax.inject.{Inject, Singleton}
 
 import io.getquill._
-import model.MachineWithEnvInfo
+import io.mwielocha.actyxapp.model.MachineWithEnvInfo
 import org.joda.time.DateTime
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -15,9 +15,9 @@ import scala.concurrent.{ExecutionContext, Future}
  */
 
 @Singleton
-class SamplesRepository {
-
-  private val ctx = new CassandraAsyncContext[SnakeCase]("db")
+class SampleRepository @Inject()(
+  private val ctx: CassandraAsyncContext[SnakeCase]
+) {
 
   import ctx._
 

@@ -1,43 +1,32 @@
-package service
+package io.mwielocha.actyxapp.service
 
 import java.util.UUID
+import javax.inject.{Inject, Singleton}
 
-import scala.language.postfixOps
-
-import javax.inject.Inject
-import javax.inject.Singleton
-
+import akka.NotUsed
 import akka.actor.ActorSystem
-import scala.concurrent.ExecutionContext
-import akka.stream.impl.fusing.GraphStages.TickSource
-import scala.concurrent.duration._
-import akka.stream.SourceShape
+import akka.stream.{FlowShape, Graph, SourceShape}
 import akka.stream.scaladsl._
-import akka.stream.ClosedShape
-import akka.stream.OverflowStrategy
-import akka.stream.FlowShape
-import akka.stream.SinkShape
+import io.mwielocha.actyxapp.util.ScalaLogging
+import io.mwielocha.actyxapp.model._
+import io.mwielocha.actyxapp.repository.SampleRepository
 
-import akka.stream.Supervision
-
-import akka.stream.ActorMaterializerSettings
-import akka.stream.ActorMaterializer
-
-import play.api.Logger
-
-import model._
-import repository.SamplesRepository
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
 /**
  * Created by Mikolaj Wielocha on 04/05/16
  */
 
 @Singleton
-class SamplingService @Inject() (private val client: MachineParkApiClient, private val samplesRepository: SamplesRepository)(implicit
-  private val actorSystem: ActorSystem,
-  private val ec: ExecutionContext) {
+class SamplingService @Inject() (
+  private val client: MachineParkApiClient,
+  private val samplesRepository: SampleRepository
+)(implicit
+  private val actorSystem: ActorSystem
+) extends ScalaLogging {
 
-  val logger: Logger = Logger(this.getClass())
+  import actorSystem.dispatcher
 
   val offset = 60 // 5 minutes average
 
@@ -139,8 +128,9 @@ class SamplingService @Inject() (private val client: MachineParkApiClient, priva
     })
   }
 
-  def newMonitoringSource(machines: List[UUID]): Source[MachineInfo, _] = {
-    Source.fromGraph(GraphDSL.create() { implicit builder =>
+  def newMonitoringGraph(machines: List[UUID]): Graph[SourceShape[MachineInfo], NotUsed] = {
+
+    GraphDSL.create() { implicit builder =>
 
       import GraphDSL.Implicits._
 
@@ -162,6 +152,10 @@ class SamplingService @Inject() (private val client: MachineParkApiClient, priva
       zipper.out ~> perister
 
       SourceShape(splitter.out(1))
-    })
+    }
+  }
+
+  def newMonitoringSource(machines: List[UUID]): Source[MachineInfo, _] = {
+    Source.fromGraph(newMonitoringGraph(machines))
   }
 }
