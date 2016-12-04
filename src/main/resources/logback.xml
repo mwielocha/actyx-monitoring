@@ -1,0 +1,20 @@
+
+<configuration>
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%date [%level] [%t]: %logger{15}: %message%n%xException{5}</pattern>
+        </encoder>
+    </appender>
+
+
+    <logger name="io.getquill" level="off" />
+
+    <logger name="io.mwielocha.actyxapp.service" level="info" />
+    <logger name="io.mwielocha.actyxapp.actors" level="debug" />
+    
+    <root level="info">
+        <appender-ref ref="STDOUT" />
+    </root>
+
+</configuration>
