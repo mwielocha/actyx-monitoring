@@ -29,13 +29,11 @@ class WebsocketRegistryActor extends Actor with ScalaLogging {
 
       logger.debug("New websocket actor registered...")
 
-      context.watch(ref)
-      registry += ref
+      registry += context.watch(ref)
 
     case Unregister(ref) =>
 
-      context.unwatch(ref)
-      registry -= ref
+      registry -= context.unwatch(ref)
 
       logger.debug("Websocket actor unregistered...")
 

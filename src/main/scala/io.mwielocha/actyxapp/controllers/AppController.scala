@@ -34,6 +34,8 @@ class AppController @Inject() (
   import ContentTypeResolver.Default
   import actorSystem.dispatcher
 
+  private val host = Option(System.getenv("HTTP_HOST"))
+
   private def websocketSourceGraph(machines: List[UUID]) = {
 
     GraphDSL.create() { implicit builder =>
@@ -78,13 +80,18 @@ class AppController @Inject() (
         }
       }
 
-    } ~ get {
+    } ~ (get & extractHost) { h =>
+
       complete {
-        for {
-          machines <- client.machines
-          view = html.Dashboard
-          body = view.render(machines).body
-        } yield HttpEntity(ContentTypes.`text/html(UTF-8)`, body)
+        client.machines.map { machines =>
+          HttpEntity(
+            ContentTypes.`text/html(UTF-8)`,
+            html.Dashboard.render(
+              host.getOrElse(h),
+              machines
+            ).body
+          )
+        }
       }
     }
   }

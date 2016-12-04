@@ -1,4 +1,4 @@
-package model
+package io.mwielocha.actyxapp.model
 
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers

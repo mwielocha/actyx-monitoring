@@ -40,6 +40,6 @@ class Bootstrap @Inject()(
 
     logger.info("Starting http...")
 
-    http.bindAndHandle(appController(), "localhost", 9001)
+    http.bindAndHandle(appController(), "localhost", 9000)
   }
 }
