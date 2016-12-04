@@ -40,6 +40,13 @@ class Bootstrap @Inject()(
 
     logger.info("Starting http...")
 
-    http.bindAndHandle(appController(), "localhost", 9000)
+    val handle = http.bindAndHandle(appController(), "localhost", 9000)
+
+    Runtime.getRuntime.addShutdownHook(new Thread() {
+      override def run(): Unit = {
+        handle.flatMap(_.unbind())
+          .onComplete(_ => actorSystem.terminate())
+      }
+    })
   }
 }
