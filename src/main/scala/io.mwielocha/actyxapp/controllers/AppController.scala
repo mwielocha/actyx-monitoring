@@ -4,7 +4,7 @@ import java.util.UUID
 import javax.inject.{Inject, Named}
 
 import akka.actor.{ActorRef, ActorSystem}
-import akka.http.scaladsl.model.ws.TextMessage
+import akka.http.scaladsl.model.ws.{Message, TextMessage}
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
@@ -36,7 +36,7 @@ class AppController @Inject() (
 
   private val host = Option(System.getenv("HTTP_HOST"))
 
-  private def websocketSourceGraph(machines: List[UUID]) = {
+  private def websocketSourceGraph = {
 
     GraphDSL.create() { implicit builder =>
 
@@ -71,13 +71,12 @@ class AppController @Inject() (
 
     } ~ path("socket") {
 
-      (get & extractUpgradeToWebSocket) { upgrade =>
-        complete {
-          client.machines.map { machines =>
-            upgrade.handleMessagesWithSinkSource(
-              Sink.ignore, websocketSourceGraph(machines))
-          }
-        }
+      get {
+        handleWebSocketMessages(
+          Flow.fromSinkAndSource(
+            Sink.ignore,
+            websocketSourceGraph)
+        )
       }
 
     } ~ (get & extractHost) { h =>
