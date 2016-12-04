@@ -5,7 +5,7 @@ lazy val root = (project in file(".")).
     name := "actyx-monitoring",
     version := "1.0",
     scalaVersion := "2.11.8"
-  ).enablePlugins(SbtTwirl)
+  ).enablePlugins(SbtTwirl, DebianPlugin)
 
 val entryPoint = Some("io.mwielocha.actyxapp.EntryPoint")
 
@@ -32,7 +32,14 @@ libraryDependencies ++= Seq(
 
 assemblyMergeStrategy in assembly := {
   case x if x.endsWith("io.netty.versions.properties") => MergeStrategy.discard
-  case x if x.endsWith("reference.conf") => MergeStrategy.discard
+  case x if x.endsWith("reference.conf") => MergeStrategy.concat
   case x => (assemblyMergeStrategy in assembly).value(x)
 }
+
+maintainer in Linux := "Mikolaj Wielocha <mwielocha@icloud.com>"
+
+packageSummary in Linux := "Actyx Machine Park Monitoring App"
+
+packageDescription := "Actyx Machine Park Monitoring App"
+
 
