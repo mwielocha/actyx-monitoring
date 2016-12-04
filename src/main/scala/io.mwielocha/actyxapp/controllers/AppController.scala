@@ -71,7 +71,10 @@ class AppController @Inject() (
 
     } ~ path("socket") {
 
-      get {
+      (get & extractRequest) { request =>
+
+        logger.debug(s"Request was: $request")
+
         handleWebSocketMessages(
           Flow.fromSinkAndSource(
             Sink.ignore,
