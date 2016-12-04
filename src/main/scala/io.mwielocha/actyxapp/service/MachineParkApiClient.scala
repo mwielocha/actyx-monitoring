@@ -46,7 +46,7 @@ class MachineParkApiClient @Inject()(
 
   private val actyxEnvConnPool = {
     http.cachedHostConnectionPool[Unit](host)
-      .throttle(3, 1 minute, 1, ThrottleMode.Shaping)
+      .throttle(1, 1 minute, 1, ThrottleMode.Shaping)
   }
 
   private val UUIDRegex = "[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}".r
