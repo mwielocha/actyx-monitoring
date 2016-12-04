@@ -95,7 +95,7 @@ class MachineParkApiClient @Inject()(
     scalacache.cachingWithTTL(cacheKey)(3 minutes) {
       for {
         response <- http.singleRequest(HttpRequest(uri = machinesUrl))
-        _ = if(response.status.isFailure()) logger.error("Error fething machines!")
+        _ = if(response.status.isFailure()) logger.error(s"Error fething machines, response was: $response")
         unmarshalled <- Unmarshal(response).to[List[String]]
         parsed = unmarshalled.flatMap(UUIDRegex.findFirstIn).map(UUID.fromString)
       } yield parsed
