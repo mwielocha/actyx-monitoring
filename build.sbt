@@ -6,7 +6,7 @@ lazy val root = (project in file(".")).
     name := "actyx-monitoring",
     version := "1.0",
     scalaVersion := "2.11.8"
-  ).enablePlugins(SbtTwirl, DebianPlugin)
+  ).enablePlugins(SbtTwirl, JavaServerAppPackaging)
 
 val entryPoint = Some("io.mwielocha.actyxapp.EntryPoint")
 
