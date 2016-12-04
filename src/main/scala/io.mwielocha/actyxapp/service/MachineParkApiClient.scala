@@ -41,12 +41,12 @@ class MachineParkApiClient @Inject()(
 
   private val actyxMachineConnPool = {
     http.cachedHostConnectionPool[Unit](host)
-    .throttle(80, 1 second, 80, ThrottleMode.Shaping)
+    .throttle(80, 1 second, 1, ThrottleMode.Shaping)
   }
 
   private val actyxEnvConnPool = {
     http.cachedHostConnectionPool[Unit](host)
-      .throttle(3, 1 minute, 3, ThrottleMode.Shaping)
+      .throttle(3, 1 minute, 1, ThrottleMode.Shaping)
   }
 
   private val UUIDRegex = "[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}".r
@@ -69,13 +69,13 @@ class MachineParkApiClient @Inject()(
 
       case (Success(response), _) =>
 
-        logger.error(s"Error getting machine list, response was: $response")
+        logger.error(s"Request error, response was: $response")
 
         Future.successful(None)
 
       case (Failure(e), _) =>
 
-        logger.error("Error getting machine list", e)
+        logger.error("Request error", e)
 
         Future.successful(None)
 
