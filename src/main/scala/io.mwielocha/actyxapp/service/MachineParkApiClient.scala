@@ -7,7 +7,7 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.HttpExt
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
-import akka.stream.scaladsl.{Flow, Source}
+import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.stream.{ActorMaterializer, ThrottleMode}
 import de.heikoseeberger.akkahttpplayjson.PlayJsonSupport
 import io.mwielocha.actyxapp.model._
@@ -70,6 +70,8 @@ class MachineParkApiClient @Inject()(
       case (Success(response), _) =>
 
         logger.error(s"Request error, response was: $response")
+
+        response.entity.dataBytes.runWith(Sink.ignore)
 
         Future.successful(None)
 
