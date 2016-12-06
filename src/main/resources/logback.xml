@@ -29,7 +29,7 @@
 
     <logger name="io.getquill" level="off" />
 
-    <logger name="io.mwielocha.actyxapp.service.MachineParkApiClient" level="debug" />
+    <logger name="io.mwielocha.actyxapp.service" level="info" />
     <logger name="io.mwielocha.actyxapp.actors" level="debug" />
     
     <root level="info">
