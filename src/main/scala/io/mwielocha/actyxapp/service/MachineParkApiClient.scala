@@ -25,15 +25,25 @@ import scalacache.serialization.InMemoryRepr
  * Created by Mikolaj Wielocha on 04/05/16
  */
 
+trait MachineParkApiClient {
+
+  def machines: Future[List[UUID]]
+
+  def envInfoSource: Source[EnvInfo, _]
+
+  def allMachinesInfoSource(machines: List[UUID]): Source[MachineInfo, _]
+
+}
+
 @Singleton
-class MachineParkApiClient @Inject()(
+class DefaultMachineParkApiClient @Inject()(
   private val http: HttpExt
 ) (
   implicit
   private val cache: ScalaCache[InMemoryRepr],
   private val actorSystem: ActorSystem,
   private val actorMaterializer: ActorMaterializer
-) extends PlayJsonSupport with ScalaLogging {
+) extends MachineParkApiClient with PlayJsonSupport with ScalaLogging {
 
   import actorSystem.dispatcher
 

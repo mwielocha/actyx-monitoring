@@ -9,6 +9,7 @@ import akka.stream.scaladsl._
 import akka.stream.{FlowShape, Graph, SourceShape}
 import io.mwielocha.actyxapp.model._
 import io.mwielocha.actyxapp.repository.SampleRepository
+import io.mwielocha.actyxapp.shapes.OutShape2
 import io.mwielocha.actyxapp.util.ScalaLogging
 
 import scala.concurrent.duration._
@@ -26,11 +27,9 @@ class SamplingService @Inject() (
   private val actorSystem: ActorSystem
 ) extends ScalaLogging {
 
-  import actorSystem.dispatcher
-
   val offset = 60 // 5 minutes average
 
-  private val machineMonitoringFlow = {
+  private[service] def machineMonitoringFlow(throttler: Source[Unit, _]) = {
 
     Flow.fromGraph {
 
@@ -38,20 +37,24 @@ class SamplingService @Inject() (
 
         import GraphDSL.Implicits._
 
-        val throttler = Source.tick[Unit](0 seconds, 5 seconds, () => ())
+        val zipper1 = builder.add {
+          ZipWith[Unit, MachineInfo, MachineInfo]((_, md) => md)
+        }
 
-        val zipper1 = builder.add(ZipWith[Unit, MachineInfo, MachineInfo]((_, md) => md))
-
-        val zipper2 = builder.add(ZipWith[MachineInfo, Double, MachineInfo] {
-          (mi, avg) => mi.copy(averageCurrent = avg)
-        })
+        val zipper2 = builder.add {
+          ZipWith[MachineInfo, Double, MachineInfo] {
+            (mi, avg) => mi.copy(averageCurrent = avg)
+          }
+        }
 
         val splitter = builder.add(Broadcast[MachineInfo](2))
 
-        val average = builder
-          .add(Flow[MachineInfo]
-            .map(_.status.current).sliding(offset)
-            .map(x => x.sum / x.size.toDouble))
+        val average = builder.add {
+          Flow[MachineInfo]
+            .map(_.status.current)
+            .sliding(offset)
+            .map(x => x.sum / x.size.toDouble)
+        }
 
         val compensate: FlowShape[Double, Double] = builder
           .add(Flow[Double]
@@ -74,7 +77,7 @@ class SamplingService @Inject() (
     }
   }
 
-  val envMonitoringFlow = {
+  private[service] val envMonitoringFlow = {
 
     Flow.fromGraph {
 
@@ -86,9 +89,10 @@ class SamplingService @Inject() (
 
         val zipper = builder.add(ZipWith[Unit, EnvInfo, EnvInfo]((_, md) => md))
 
-        val compensate: FlowShape[EnvInfo, EnvInfo] = builder
-          .add(Flow[EnvInfo]
-            .expand(Iterator.continually(_)))
+        val compensate: FlowShape[EnvInfo, EnvInfo] = builder.add {
+          Flow[EnvInfo]
+            .expand(Iterator.continually(_))
+        }
 
         throttler ~> zipper.in0
 
@@ -118,9 +122,16 @@ class SamplingService @Inject() (
         client.allMachinesInfoSource(machines) ~> partitioner
 
         machines.indices.foreach {
-          merger <~ builder.add(
-            machineMonitoringFlow
-          ) <~ partitioner.out(_)
+
+          merger <~ builder.add {
+
+            machineMonitoringFlow(
+              Source.tick[Unit](
+                0 seconds,
+                5 seconds,
+                () => ())
+            )
+          } <~ partitioner.out(_)
         }
 
         SourceShape(merger.out)
@@ -145,7 +156,22 @@ class SamplingService @Inject() (
     }
   }
 
-  def newMonitoringGraph(machines: List[UUID]): Graph[SourceShape[MachineInfo], NotUsed] = {
+  def newMonitoringGraphWithPersitance(machines: List[UUID]): Graph[SourceShape[MachineInfo], NotUsed] = {
+
+    GraphDSL.create() { implicit builder =>
+
+      import GraphDSL.Implicits._
+
+      val sources = builder.add(newMonitoringGraph(machines))
+
+      sources.out2 ~> samplesRepository.persistingSink
+
+      SourceShape(sources.out1)
+
+    }
+  }
+
+  def newMonitoringGraph(machines: List[UUID]): Graph[OutShape2[MachineInfo, MachineWithEnvInfo], NotUsed] = {
 
     logger.info("Creating new monitoring source graph...")
 
@@ -153,12 +179,11 @@ class SamplingService @Inject() (
 
       import GraphDSL.Implicits._
 
-      val zipper = builder.add(ZipWith[MachineInfo, EnvInfo, MachineWithEnvInfo] {
-
-        (m, e) => MachineWithEnvInfo(m, e)
-      })
-
-      val perister = Sink.foreachParallel[MachineWithEnvInfo](1)(samplesRepository.save(_))
+      val zipper = builder.add {
+        ZipWith[MachineInfo, EnvInfo, MachineWithEnvInfo] {
+          (m, e) => MachineWithEnvInfo(m, e)
+        }
+      }
 
       val splitter = builder.add(Broadcast[MachineInfo](2))
 
@@ -168,13 +193,11 @@ class SamplingService @Inject() (
 
       newEnvironmentMonitoringSource ~> zipper.in1
 
-      zipper.out ~> perister
-
-      SourceShape(splitter.out(1))
+      OutShape2(splitter.out(1), zipper.out)
     }
   }
 
   def newMonitoringSource(machines: List[UUID]): Source[MachineInfo, _] = {
-    Source.fromGraph(newMonitoringGraph(machines))
+    Source.fromGraph(newMonitoringGraphWithPersitance(machines))
   }
 }

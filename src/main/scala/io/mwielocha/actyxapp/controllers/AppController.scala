@@ -1,10 +1,9 @@
 package io.mwielocha.actyxapp.controllers
 
-import java.util.UUID
 import javax.inject.{Inject, Named}
 
 import akka.actor.{ActorRef, ActorSystem}
-import akka.http.scaladsl.model.ws.{Message, TextMessage}
+import akka.http.scaladsl.model.ws.TextMessage
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
