@@ -5,6 +5,7 @@ import javax.inject.{Inject, Singleton}
 
 import io.getquill._
 import io.mwielocha.actyxapp.model.MachineWithEnvInfo
+import io.mwielocha.actyxapp.util.ScalaLogging
 import org.joda.time.DateTime
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -17,7 +18,7 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class SampleRepository @Inject()(
   private val ctx: CassandraAsyncContext[SnakeCase]
-) {
+) extends ScalaLogging {
 
   import ctx._
 

@@ -36,6 +36,8 @@ class AppController @Inject() (
 
   private val host = Option(System.getenv("HTTP_HOST"))
 
+  logger.info(s"Host is $host")
+
   private def websocketSourceGraph = {
 
     GraphDSL.create() { implicit builder =>

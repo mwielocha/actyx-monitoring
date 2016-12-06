@@ -147,6 +147,8 @@ class SamplingService @Inject() (
 
   def newMonitoringGraph(machines: List[UUID]): Graph[SourceShape[MachineInfo], NotUsed] = {
 
+    logger.info("Creating new monitoring source graph...")
+
     GraphDSL.create() { implicit builder =>
 
       import GraphDSL.Implicits._

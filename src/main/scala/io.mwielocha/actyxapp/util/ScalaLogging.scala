@@ -10,4 +10,6 @@ trait ScalaLogging {
 
   protected val logger = Logger(LoggerFactory.getLogger(getClass))
 
+  logger.info(s"[*** Create]: ${getClass.getSimpleName}")
+
 }

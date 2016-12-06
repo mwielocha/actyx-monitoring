@@ -46,7 +46,7 @@ class MachineParkApiClient @Inject()(
 
   private val actyxEnvConnPool = {
     http.cachedHostConnectionPool[Unit](host)
-      .throttle(3, 1 minute, 1, ThrottleMode.Shaping)
+      .throttle(1, 1 minute, 1, ThrottleMode.Shaping)
   }
 
   private val UUIDRegex = "[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}".r
@@ -59,9 +59,11 @@ class MachineParkApiClient @Inject()(
 
   private val cacheKey = "machines"
 
+  type ResponseWithContext[C] = (Try[HttpResponse], C)
+
   private def extract[T, C](implicit unm: Unmarshaller[HttpResponse, T]) = {
 
-    Flow[(Try[HttpResponse], C)].mapAsync[Option[(T, C)]](1) {
+    Flow[ResponseWithContext[C]].mapAsync[Option[(T, C)]](1) {
 
       case (Success(response), ctx) if response.status.isSuccess() =>
 
@@ -84,12 +86,24 @@ class MachineParkApiClient @Inject()(
     }.filterNot(_.isEmpty).map(_.get)
   }
 
+  private def logResponse[C] = {
+    Flow[ResponseWithContext[C]].map[ResponseWithContext[C]] {
+      case result@(Success(response), ctx) =>
+        logger.debug(s"Response was $response with context $ctx")
+        result
+      case otherwise => otherwise
+    }
+  }
+
   def envInfoSource: Source[EnvInfo, _] = {
+
+    logger.info("Creating new env info source...")
 
     val element = HttpRequest(uri = envSensorUrl) -> ()
 
     val source = Source.repeat(element)
       .via(actyxEnvConnPool)
+      .via(logResponse[Unit])
       .via(extract[EnvInfo, Unit])
 
     source.map {
@@ -109,6 +123,8 @@ class MachineParkApiClient @Inject()(
   }
 
   def allMachinesInfoSource(machines: List[UUID]): Source[MachineInfo, _] = {
+
+    logger.info("Creating new machines info source...")
 
     val source = Source.cycle(() => machines.iterator)
       .map(id => HttpRequest(uri = s"$machineUrl/$id") -> id)
