@@ -78,3 +78,4 @@ flycheck_*.el
 .projectile
 *.deb
 logs
+typescript
