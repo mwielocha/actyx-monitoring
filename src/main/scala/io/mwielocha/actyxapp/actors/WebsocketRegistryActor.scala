@@ -1,15 +1,19 @@
 package io.mwielocha.actyxapp.actors
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Terminated}
+import akka.actor.{Actor, ActorRef, Terminated}
 import io.mwielocha.actyxapp.util.ScalaLogging
 
 import scala.collection._
+import scala.collection.immutable.Queue
+import io.mwielocha.actyxapp.util._
 
 /**
   * Created by mwielocha on 04/12/2016.
   */
 
 object WebsocketRegistryActor {
+
+  implicit val bufferSize = QueueBufferSize(1000)
 
   final val actorName = "websocketRegistryActor"
 
@@ -23,6 +27,8 @@ class WebsocketRegistryActor extends Actor with ScalaLogging {
 
   private val registry = mutable.Set.empty[ActorRef]
 
+  private var buffer = Queue[Any]()
+
   override def receive = {
 
     case Register(ref) =>
@@ -30,6 +36,8 @@ class WebsocketRegistryActor extends Actor with ScalaLogging {
       logger.debug("New websocket actor registered...")
 
       registry += context.watch(ref)
+
+      buffer.foreach(ref ! _)
 
     case Unregister(ref) =>
 
@@ -43,6 +51,10 @@ class WebsocketRegistryActor extends Actor with ScalaLogging {
 
       self ! Unregister(ref)
 
-    case other => registry.foreach(_ ! other)
+    case other =>
+
+      buffer = buffer.enqueueWithMaxSize(other)
+
+      registry.foreach(_ ! other)
   }
 }
