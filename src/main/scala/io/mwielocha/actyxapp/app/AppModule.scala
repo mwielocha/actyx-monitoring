@@ -10,6 +10,8 @@ import com.google.inject.{Injector, Provides}
 import io.getquill.{CassandraAsyncContext, SnakeCase}
 import io.mwielocha.actyxapp.actors.WebsocketRegistryActor
 import io.mwielocha.actyxapp.akkaguice.{GuiceAkkaActorRefProvider, GuiceAkkaExtension}
+import io.mwielocha.actyxapp.repository.{DefaultSampleRepository, SampleRepository}
+import io.mwielocha.actyxapp.service.{DefaultMachineParkApiClient, MachineParkApiClient}
 import net.codingwell.scalaguice.ScalaModule
 
 import scalacache._
@@ -22,6 +24,12 @@ import scalacache.serialization.InMemoryRepr
 class AppModule extends ScalaModule with GuiceAkkaActorRefProvider {
 
   override def configure(): Unit = {
+
+    bind[MachineParkApiClient]
+      .to[DefaultMachineParkApiClient]
+
+    bind[SampleRepository]
+      .to[DefaultSampleRepository]
 
     bind[Actor]
       .annotatedWithName(WebsocketRegistryActor.actorName)

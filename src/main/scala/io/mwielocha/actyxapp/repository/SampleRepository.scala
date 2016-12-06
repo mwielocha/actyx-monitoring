@@ -3,6 +3,8 @@ package io.mwielocha.actyxapp.repository
 import java.util.{Date, UUID}
 import javax.inject.{Inject, Singleton}
 
+import akka.actor.ActorSystem
+import akka.stream.scaladsl.Sink
 import io.getquill._
 import io.mwielocha.actyxapp.model.MachineWithEnvInfo
 import io.mwielocha.actyxapp.util.ScalaLogging
@@ -15,12 +17,20 @@ import scala.concurrent.{ExecutionContext, Future}
  * Created by Mikolaj Wielocha on 05/05/16
  */
 
+trait SampleRepository {
+
+  def persistingSink: Sink[MachineWithEnvInfo, _]
+
+}
+
 @Singleton
-class SampleRepository @Inject()(
+class DefaultSampleRepository @Inject()(
+  private val actorSystem: ActorSystem,
   private val ctx: CassandraAsyncContext[SnakeCase]
-) extends ScalaLogging {
+) extends SampleRepository with ScalaLogging {
 
   import ctx._
+  import actorSystem.dispatcher
 
   private val `24hours` = quote(86400)
 
@@ -37,7 +47,7 @@ class SampleRepository @Inject()(
     timestamp: DateTime
   )
 
-  def save(e: MachineWithEnvInfo)(implicit ec: ExecutionContext): Future[MachineWithEnvInfo] = {
+  private def save(e: MachineWithEnvInfo)(implicit ec: ExecutionContext): Future[MachineWithEnvInfo] = {
 
     val sample = Sample(
       e.machineInfo.id,
@@ -54,5 +64,9 @@ class SampleRepository @Inject()(
         .insert(lift(sample))
         .usingTtl(`24hours`)
     }.map(_ => e)
+  }
+
+  override val persistingSink: Sink[MachineWithEnvInfo, _] = {
+    Sink.foreachParallel[MachineWithEnvInfo](1)(save(_))
   }
 }
