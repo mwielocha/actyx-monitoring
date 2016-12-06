@@ -37,6 +37,105 @@
 	<link href="http://fonts.googleapis.com/css?family=Raleway:400,300" rel="stylesheet" type="text/css">
 	<link href="http://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet" type="text/css">
 
+	<script type="text/javascript">
+$(document).ready(function () {
+
+    $("#btn-blog-next").click(function () {
+      $('#blogCarousel').carousel('next')
+    });
+     $("#btn-blog-prev").click(function () {
+      $('#blogCarousel').carousel('prev')
+    });
+
+     $("#btn-client-next").click(function () {
+      $('#clientCarousel').carousel('next')
+    });
+     $("#btn-client-prev").click(function () {
+      $('#clientCarousel').carousel('prev')
+    });
+    
+});
+
+ $(window).load(function(){
+
+    var socket = new WebSocket('ws://@host/socket');
+      
+    socket.onmessage = function (event) {
+      var machine = JSON.parse(event.data);
+      var square = $('#' + machine.id);
+
+      if(machine.state != 'working') {
+          square.addClass('off');
+      } else {
+          square.removeClass('off');
+      }
+        
+      square.find('.machine_name').text(machine.name);
+      square.find('.current_alert').text(machine.current_alert.toFixed(2));
+
+      var previousCurrent = parseFloat(square.find('.current').text());
+      var currentImage = '';
+      if(machine.current < previousCurrent) {
+          currentImage = 'assets/img/down.png';
+      } else if (machine.current > previousCurrent) {
+          currentImage = 'assets/img/up.png';
+      }
+        
+      square.find('.current').text(machine.current);
+      square.find('.higlight').attr('class', 'current higlight ' + machine.status);
+      square.find('.current_arrow').attr('src', currentImage);
+
+      square.find('.state').text(machine.state);
+      square.find('.type').text(machine.type);
+      square.find('.location').text(machine.location);
+
+      square.find('.state').text(machine.state);
+        
+      var previousAverage = parseFloat(square.find('.average_current').text());
+      var averageImage = '';
+      if(machine.average_current < previousAverage) {
+          averageImage = 'assets/img/down-small.png';
+      } else if (machine.average_current > previousAverage) {
+         averageImage = 'assets/img/up-small.png' 
+      }
+        
+      square.find('.average_current').text(machine.average_current.toFixed(2));
+      square.find('.average_arrow').attr('src', averageImage);
+      square.find('.timestamp').text(new Date(machine.timestamp));
+
+      if(machine.status == 'critical' && previousCurrent != machine.current) {
+          var n = noty({
+              text: '[' + new Date(machine.timestamp) + '] '
+                  + machine.name + ' current above threshold, average from last 5 minutes is: '
+                  + machine.average_current.toFixed(2),
+              type: 'error',
+              maxVisible: 3,
+              layout: 'topRight',
+              closeWith: ['click'],
+              dismissQueue: true,
+              force: true,
+              callback: {
+                  onShow: function() {},
+                  afterShow: function() {
+                      setTimeout(function() { n.close(); }, 5000);
+                  },
+                  onClose: function() {},
+                  afterClose: function() {},
+                  onCloseClick: function() {
+                      $('html, body').animate({
+                          scrollTop: $('#' + machine.id).offset().top
+                      }, 2000, 'swing', function() {
+                          $('#' + machine.id).fadeOut(100).fadeIn(100);
+                      });
+                  },
+              }
+          });
+      }
+    }
+  
+});
+
+</script>
 	<style>
   .off {
     background-color: black;
@@ -142,108 +241,5 @@
 	<!-- <script type="text/javascript" src="assets/js/dash-noty.js"></script> This is a Noty bubble when you init the theme-->
 	<script src="assets/js/jquery.flexslider.js" type="text/javascript"></script>
 
-	<script type="text/javascript">
-
-function initSocket() {
-
-    var socket = new WebSocket('ws://@host/socket');
-
-    socket.onmessage = function (event) {
-      var machine = JSON.parse(event.data);
-      var square = $('#' + machine.id);
-
-      if(machine.state != 'working') {
-          square.addClass('off');
-      } else {
-          square.removeClass('off');
-      }
-
-      square.find('.machine_name').text(machine.name);
-      square.find('.current_alert').text(machine.current_alert.toFixed(2));
-
-      var previousCurrent = parseFloat(square.find('.current').text());
-      var currentImage = '';
-      if(machine.current < previousCurrent) {
-          currentImage = 'assets/img/down.png';
-      } else if (machine.current > previousCurrent) {
-          currentImage = 'assets/img/up.png';
-      }
-
-      square.find('.current').text(machine.current);
-      square.find('.higlight').attr('class', 'current higlight ' + machine.status);
-      square.find('.current_arrow').attr('src', currentImage);
-
-      square.find('.state').text(machine.state);
-      square.find('.type').text(machine.type);
-      square.find('.location').text(machine.location);
-
-      square.find('.state').text(machine.state);
-
-      var previousAverage = parseFloat(square.find('.average_current').text());
-      var averageImage = '';
-      if(machine.average_current < previousAverage) {
-          averageImage = 'assets/img/down-small.png';
-      } else if (machine.average_current > previousAverage) {
-         averageImage = 'assets/img/up-small.png'
-      }
-
-      square.find('.average_current').text(machine.average_current.toFixed(2));
-      square.find('.average_arrow').attr('src', averageImage);
-      square.find('.timestamp').text(new Date(machine.timestamp));
-
-      if(machine.status == 'critical' && previousCurrent != machine.current) {
-          var n = noty({
-              text: '[' + new Date(machine.timestamp) + '] '
-                  + machine.name + ' current above threshold, average from last 5 minutes is: '
-                  + machine.average_current.toFixed(2),
-              type: 'error',
-              maxVisible: 3,
-              layout: 'topRight',
-              closeWith: ['click'],
-              dismissQueue: true,
-              force: true,
-              callback: {
-                  onShow: function() {},
-                  afterShow: function() {
-                      setTimeout(function() { n.close(); }, 5000);
-                  },
-                  onClose: function() {},
-                  afterClose: function() {},
-                  onCloseClick: function() {
-                      $('html, body').animate({
-                          scrollTop: $('#' + machine.id).offset().top
-                      }, 2000, 'swing', function() {
-                          $('#' + machine.id).fadeOut(100).fadeIn(100);
-                      });
-                  },
-              }
-          });
-      }
-    }
-
-};
-
-$(document).ready(function () {
-
-    $("#btn-blog-next").click(function () {
-      $('#blogCarousel').carousel('next')
-    });
-     $("#btn-blog-prev").click(function () {
-      $('#blogCarousel').carousel('prev')
-    });
-
-     $("#btn-client-next").click(function () {
-      $('#clientCarousel').carousel('next')
-    });
-     $("#btn-client-prev").click(function () {
-      $('#clientCarousel').carousel('prev')
-    });
-
-    initSocket();
-
-});
-
-
-</script>
 
 </body></html>
