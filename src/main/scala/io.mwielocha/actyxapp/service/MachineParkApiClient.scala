@@ -40,13 +40,13 @@ class MachineParkApiClient @Inject()(
   private val host = "machinepark.actyx.io"
 
   private val actyxMachineConnPool = {
-    http.cachedHostConnectionPool[Unit](host)
+    http.cachedHostConnectionPool[UUID](host)
     .throttle(80, 1 second, 1, ThrottleMode.Shaping)
   }
 
   private val actyxEnvConnPool = {
     http.cachedHostConnectionPool[Unit](host)
-      .throttle(1, 1 minute, 1, ThrottleMode.Shaping)
+      .throttle(3, 1 minute, 1, ThrottleMode.Shaping)
   }
 
   private val UUIDRegex = "[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}".r
@@ -59,13 +59,13 @@ class MachineParkApiClient @Inject()(
 
   private val cacheKey = "machines"
 
-  private def extract[T](implicit unm: Unmarshaller[HttpResponse, T]) = {
+  private def extract[T, C](implicit unm: Unmarshaller[HttpResponse, T]) = {
 
-    Flow[(Try[HttpResponse], Unit)].mapAsync[Option[T]](1) {
+    Flow[(Try[HttpResponse], C)].mapAsync[Option[(T, C)]](1) {
 
-      case (Success(response), _) if response.status.isSuccess() =>
+      case (Success(response), ctx) if response.status.isSuccess() =>
 
-        Unmarshal(response).to[T].map(Some(_))
+        Unmarshal(response).to[T].map(json => Some(json -> ctx))
 
       case (Success(response), _) =>
 
@@ -88,9 +88,13 @@ class MachineParkApiClient @Inject()(
 
     val element = HttpRequest(uri = envSensorUrl) -> ()
 
-    Source.repeat(element)
+    val source = Source.repeat(element)
       .via(actyxEnvConnPool)
-      .via(extract[EnvInfo])
+      .via(extract[EnvInfo, Unit])
+
+    source.map {
+      case (info, _) => info
+    }
   }
 
   def machines: Future[List[UUID]] = {
@@ -104,14 +108,17 @@ class MachineParkApiClient @Inject()(
     }
   }
 
-  def machineInfoSource(machineId: UUID): Source[MachineInfo, _] = {
+  def allMachinesInfoSource(machines: List[UUID]): Source[MachineInfo, _] = {
 
-    val element = HttpRequest(uri = s"$machineUrl/$machineId") -> ()
-
-    Source.repeat(element)
+    val source = Source.cycle(() => machines.iterator)
+      .map(id => HttpRequest(uri = s"$machineUrl/$id") -> id)
       .via(actyxMachineConnPool)
-      .via(extract[MachineStatus])
-      .map(MachineInfo(machineId, _))
+      .via(extract[MachineStatus, UUID])
+
+    source.map {
+      case (status, id) =>
+        MachineInfo(id, status)
+    }
   }
 }
 

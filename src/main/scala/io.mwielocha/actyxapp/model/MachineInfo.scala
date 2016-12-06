@@ -10,11 +10,12 @@ import play.api.libs.json._
 
 case class MachineInfo(id: UUID, status: MachineStatus, averageCurrent: Double = 0.0)
 
-object MachineInfo {
+object MachineInfo extends ((UUID, MachineStatus, Double) => MachineInfo) {
 
   implicit val reads = Json.reads[MachineInfo]
 
   implicit val writes = new Writes[MachineInfo] {
+
     override def writes(mi: MachineInfo): JsValue = {
       Json.obj(
         "id" -> mi.id,
