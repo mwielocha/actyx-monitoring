@@ -18,7 +18,6 @@ object WebsocketRegistryActor {
   final val actorName = "websocketRegistryActor"
 
   case class Register(actorRef: ActorRef)
-  case class Unregister(actorRef: ActorRef)
 }
 
 class WebsocketRegistryActor extends Actor with ScalaLogging {
@@ -39,17 +38,13 @@ class WebsocketRegistryActor extends Actor with ScalaLogging {
 
       buffer.foreach(ref ! _)
 
-    case Unregister(ref) =>
-
-      registry -= context.unwatch(ref)
-
-      logger.debug("Websocket actor unregistered...")
-
     case Terminated(ref) =>
 
       logger.debug("Websocket actor terminating...")
 
-      self ! Unregister(ref)
+      registry -= context.unwatch(ref)
+
+      logger.debug("Websocket actor unregistered...")
 
     case other =>
 
