@@ -49,15 +49,8 @@ class DefaultMachineParkApiClient @Inject()(
 
   private val host = "machinepark.actyx.io"
 
-  private val actyxMachineConnPool = {
-    http.cachedHostConnectionPool[UUID](host)
-    .throttle(80, 1 second, 1, ThrottleMode.Shaping)
-  }
-
-  private val actyxEnvConnPool = {
-    http.cachedHostConnectionPool[Unit](host)
-      .throttle(1, 1 minute, 1, ThrottleMode.Shaping)
-  }
+  private val actyxEnvConnPool = http.cachedHostConnectionPool[Unit](host)
+  private val actyxMachinesConnPool = http.cachedHostConnectionPool[UUID](host)
 
   private val UUIDRegex = "[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}".r
 
@@ -112,6 +105,7 @@ class DefaultMachineParkApiClient @Inject()(
     val element = HttpRequest(uri = envSensorUrl) -> ()
 
     val source = Source.repeat(element)
+      .throttle(3, 1 minute, 1, ThrottleMode.Shaping)
       .via(actyxEnvConnPool)
       .via(logResponse[Unit])
       .via(extract[EnvInfo, Unit])
@@ -138,7 +132,8 @@ class DefaultMachineParkApiClient @Inject()(
 
     val source = Source.cycle(() => machines.iterator)
       .map(id => HttpRequest(uri = s"$machineUrl/$id") -> id)
-      .via(actyxMachineConnPool)
+      .throttle(80, 1 second, 1, ThrottleMode.Shaping)
+      .via(actyxMachinesConnPool)
       .via(extract[MachineStatus, UUID])
 
     source.map {
