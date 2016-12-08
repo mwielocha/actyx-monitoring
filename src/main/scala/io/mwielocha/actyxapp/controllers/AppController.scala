@@ -10,6 +10,7 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.directives.ContentTypeResolver
 import akka.stream.scaladsl.{Flow, GraphDSL, Sink, Source}
 import akka.stream.{ActorMaterializer, OverflowStrategy, SourceShape}
+import com.typesafe.config.Config
 import de.heikoseeberger.akkahttpplayjson.PlayJsonSupport
 import io.mwielocha.actyxapp.actors.WebsocketRegistryActor
 import io.mwielocha.actyxapp.actors.WebsocketRegistryActor.Register
@@ -22,6 +23,7 @@ import play.api.libs.json.Json
   * Created by mwielocha on 04/12/2016.
   */
 class AppController @Inject() (
+  private val config: Config,
   private val client: MachineParkApiClient,
   private val samplingService: SamplingService,
   @Named(WebsocketRegistryActor.actorName) val websocketRegistryActor: ActorRef
@@ -44,8 +46,10 @@ class AppController @Inject() (
       import GraphDSL.Implicits._
 
       val source = builder.add {
-        Source.actorRef(100, OverflowStrategy.dropHead)
-          .mapMaterializedValue(websocketRegistryActor ! Register(_))
+        Source.actorRef(
+          config.getInt("ws.bufferSize"),
+          OverflowStrategy.dropTail
+        ).mapMaterializedValue(websocketRegistryActor ! Register(_))
       }
 
       val serializer = builder.add {

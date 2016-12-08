@@ -8,6 +8,7 @@ import akka.http.scaladsl.Http
 import akka.stream.{ActorMaterializer, ActorMaterializerSettings, Supervision}
 import com.google.common.cache.CacheBuilder
 import com.google.inject.{Injector, Provides}
+import com.typesafe.config.Config
 import io.getquill.{CassandraAsyncContext, SnakeCase}
 import io.mwielocha.actyxapp.actors.WebsocketRegistryActor
 import io.mwielocha.actyxapp.akkaguice.{GuiceAkkaActorRefProvider, GuiceAkkaExtension}
@@ -23,9 +24,11 @@ import scalacache.serialization.InMemoryRepr
 /**
   * Created by mwielocha on 04/12/2016.
   */
-class AppModule extends ScalaModule with GuiceAkkaActorRefProvider with ScalaLogging {
+class AppModule(config: Config) extends ScalaModule with GuiceAkkaActorRefProvider with ScalaLogging {
 
   override def configure(): Unit = {
+
+    bind[Config].toInstance(config)
 
     bind[MachineParkApiClient]
       .to[DefaultMachineParkApiClient]
