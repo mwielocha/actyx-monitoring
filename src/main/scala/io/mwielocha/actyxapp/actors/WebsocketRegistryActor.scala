@@ -1,11 +1,14 @@
 package io.mwielocha.actyxapp.actors
 
+import javax.inject.Inject
+
 import akka.actor.{Actor, ActorRef, Terminated}
+import com.google.common.collect.EvictingQueue
+import com.typesafe.config.Config
 import io.mwielocha.actyxapp.util.ScalaLogging
 
+import scala.collection.JavaConversions._
 import scala.collection._
-import scala.collection.immutable.Queue
-import io.mwielocha.actyxapp.util._
 
 /**
   * Created by mwielocha on 04/12/2016.
@@ -13,20 +16,20 @@ import io.mwielocha.actyxapp.util._
 
 object WebsocketRegistryActor {
 
-  implicit val bufferSize = QueueBufferSize(1000)
-
   final val actorName = "websocketRegistryActor"
 
   case class Register(actorRef: ActorRef)
 }
 
-class WebsocketRegistryActor extends Actor with ScalaLogging {
+class WebsocketRegistryActor @Inject()(
+  private val config: Config
+) extends Actor with ScalaLogging {
 
   import WebsocketRegistryActor._
 
   private val registry = mutable.Set.empty[ActorRef]
 
-  private var buffer = Queue[Any]()
+  private val buffer = EvictingQueue.create[Any](config.getInt("ws.bufferSize"))
 
   override def receive = {
 
@@ -48,7 +51,7 @@ class WebsocketRegistryActor extends Actor with ScalaLogging {
 
     case other =>
 
-      buffer = buffer.enqueueWithMaxSize(other)
+      buffer.add(other)
 
       registry.foreach(_ ! other)
   }
