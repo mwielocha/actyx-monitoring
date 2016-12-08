@@ -4,7 +4,7 @@ import javax.inject.{Inject, Named, Singleton}
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.HttpExt
-import akka.stream.{ActorMaterializer, OverflowStrategy}
+import akka.stream.{ActorMaterializer, Attributes, OverflowStrategy}
 import akka.stream.scaladsl.Sink
 import io.mwielocha.actyxapp.actors.WebsocketRegistryActor
 import io.mwielocha.actyxapp.controllers.AppController
