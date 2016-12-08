@@ -2,9 +2,10 @@ package io.mwielocha.actyxapp.app
 
 import javax.inject.{Inject, Named, Singleton}
 
-import akka.actor.{Actor, ActorRef, ActorSystem}
+import akka.actor.SupervisorStrategy.Restart
+import akka.actor.{Actor, ActorRef, ActorSystem, OneForOneStrategy}
 import akka.http.scaladsl.Http
-import akka.stream.ActorMaterializer
+import akka.stream.{ActorMaterializer, ActorMaterializerSettings, Supervision}
 import com.google.common.cache.CacheBuilder
 import com.google.inject.{Injector, Provides}
 import io.getquill.{CassandraAsyncContext, SnakeCase}
@@ -12,6 +13,7 @@ import io.mwielocha.actyxapp.actors.WebsocketRegistryActor
 import io.mwielocha.actyxapp.akkaguice.{GuiceAkkaActorRefProvider, GuiceAkkaExtension}
 import io.mwielocha.actyxapp.repository.{DefaultSampleRepository, SampleRepository}
 import io.mwielocha.actyxapp.service.{DefaultMachineParkApiClient, MachineParkApiClient}
+import io.mwielocha.actyxapp.util.ScalaLogging
 import net.codingwell.scalaguice.ScalaModule
 
 import scalacache._
@@ -21,7 +23,7 @@ import scalacache.serialization.InMemoryRepr
 /**
   * Created by mwielocha on 04/12/2016.
   */
-class AppModule extends ScalaModule with GuiceAkkaActorRefProvider {
+class AppModule extends ScalaModule with GuiceAkkaActorRefProvider with ScalaLogging {
 
   override def configure(): Unit = {
 
@@ -62,7 +64,18 @@ class AppModule extends ScalaModule with GuiceAkkaActorRefProvider {
 
   @Provides
   @Singleton
-  def actorMaterializer(implicit @Inject() actorSystem: ActorSystem) = ActorMaterializer()
+  def actorMaterializer(implicit @Inject() actorSystem: ActorSystem) = {
+
+    val decider: Supervision.Decider = {
+      e => logger.error("Stream error, restarting...", e)
+        Supervision.Restart
+    }
+
+    ActorMaterializer {
+      ActorMaterializerSettings(actorSystem)
+        .withSupervisionStrategy(decider)
+    }
+  }
 
   @Provides
   @Singleton
