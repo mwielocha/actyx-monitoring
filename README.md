@@ -12,4 +12,4 @@ Running locally:
 ```bash
 export HTTP_HOST=localhost:9000; sbt run
 ```
-Live demo can be found here: http://atyx-monitoring.wmdev.org
+Live demo can be found here: http://actyx-monitoring.wmdev.org
