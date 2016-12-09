@@ -1,6 +1,6 @@
 # Actyx Monitoring
 
-Akka Http/Strems solution to Actyx Tech Challenge number 1, "Power Usage Alert": https://www.actyx.io/en/tech-challenges/
+Akka Http/Streams solution to Actyx Tech Challenge number 1, "Power Usage Alert": https://www.actyx.io/en/tech-challenges/
 
 Testing:
 
